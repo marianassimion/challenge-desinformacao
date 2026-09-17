@@ -4,6 +4,7 @@ import os
 import glob
 import spacy
 import torch
+import joblib
 from transformers import AutoTokenizer, AutoModel
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
@@ -14,6 +15,7 @@ from tqdm import tqdm
 BERT_MODEL = "neuralmind/bert-base-portuguese-cased"
 MAX_LEN = 128
 BATCH_SIZE = 32
+MODEL_SAVE_PATH = "rf_model.joblib"
 
 # Load Spacy
 try:
@@ -25,7 +27,6 @@ except:
 
 def load_datasets():
     print("Loading and unifying datasets...")
-
     # 1. FakeRecogna
     try:
         arquivo_fakerecogna = glob.glob("FakeRecogna/**/*.xlsx", recursive=True)[0]
@@ -84,14 +85,12 @@ def load_datasets():
     return df_final
 
 def get_stylometric_features(text):
-    # Grammar
     doc = nlp(text[:5000])
     tamanho = len(doc) if len(doc) > 0 else 1
     verbos = sum(1 for token in doc if token.pos_ == "VERB") / tamanho * 100
     adjetivos = sum(1 for token in doc if token.pos_ == "ADJ") / tamanho * 100
     pronomes = sum(1 for token in doc if token.pos_ == "PRON") / tamanho * 100
 
-    # Emotional Score
     palavras_sensacionalistas = [
         "urgente", "chocante", "bomba", "escândalo", "revelado", "segredo",
         "não vão acreditar", "atenção", "alerta", "exclusivo", "inacreditável",
@@ -103,7 +102,6 @@ def get_stylometric_features(text):
     n_maiusculas = sum(1 for p in text.split() if p.isupper() and len(p) > 1)
     palavras = max(len(text.split()), 1)
     score = min(round((n_exclamacao * 1.5 + n_sensacional * 3 + n_maiusculas) / palavras * 100, 2), 10)
-
     return [verbos, adjetivos, pronomes, score]
 
 def get_bert_embeddings(texts):
@@ -111,54 +109,36 @@ def get_bert_embeddings(texts):
     tokenizer = AutoTokenizer.from_pretrained(BERT_MODEL)
     model = AutoModel.from_pretrained(BERT_MODEL)
     model.eval()
-
     embeddings = []
     with torch.no_grad():
         for i in tqdm(range(0, len(texts), BATCH_SIZE)):
             batch = texts[i : i + BATCH_SIZE]
             inputs = tokenizer(batch, padding=True, truncation=True, max_length=MAX_LEN, return_tensors="pt")
             outputs = model(**inputs)
-            # Use CLS token embedding
             cls_embeddings = outputs.last_hidden_state[:, 0, :].numpy()
             embeddings.append(cls_embeddings)
-
     return np.vstack(embeddings)
 
 def main():
     df = load_datasets()
     print(f"Unified Dataset Size: {df.shape}")
-
-    # 1. Stylometric Features
     print("Extracting stylometric features...")
     stylometry = np.array([get_stylometric_features(t) for t in tqdm(df["text"])])
-
-    # 2. BERT Embeddings
     texts = df["text"].tolist()
     bert_features = get_bert_embeddings(texts)
-
-    # 3. Fusion
     print("Fusing features...")
     X = np.hstack([bert_features, stylometry])
     y = df["label"].map({"fake": 1, "true": 0}).values
-
-    # 4. Train/Test Split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
-    # 5. Model
     print("Training Hybrid Random Forest Model...")
     clf = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1)
     clf.fit(X_train, y_train)
-
-    # 6. Evaluation
     y_pred = clf.predict(X_test)
     print("\n--- HYBRID MODEL REPORT ---")
     print(classification_report(y_test, y_pred, target_names=['Verdadeiro (0)', 'Falso (1)']))
-
-    # 7. Feature Importance (Approximate for BERT)
-    importancias = clf.feature_importances_
-    stylometry_imp = np.sum(importancias[-4:])
-    bert_imp = np.sum(importancias[:-4])
-    print(f"\nTotal Importance - BERT Semantics: {bert_imp:.2%}, Stylometry: {stylometry_imp:.2%}")
+    print(f"Saving model to {MODEL_SAVE_PATH}...")
+    joblib.dump(clf, MODEL_SAVE_PATH)
+    print("Model saved successfully!")
 
 if __name__ == "__main__":
     main()

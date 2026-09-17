@@ -62,4 +62,4 @@ O desenvolvimento está dividido em três fases focadas em transformar o código
 *   [ ] Criar pipeline de retreinamento automático com novos dados coletados.
 
 ---
-**Status:** Em Desenvolvimento | **Responsável:** Claude Code / Arquiteto de Software**
+**Status:** Em Desenvolvimento | **Responsável:** Time 7**
