@@ -1,81 +1,81 @@
-# Análise Detalhada do Dataset: Detecção de Fake News
+# 📊 Auditoria e Análise do Dataset: Detecção de Fake News
 
-Este documento fornece uma análise exaustiva dos dados utilizados no projeto, respondendo a critérios de contexto, estrutura, qualidade, distribuição, objetivos de pesquisa e ética.
+Este documento apresenta a análise técnica e a auditoria de dados do corpus unificado utilizado para o treinamento e validação do modelo de detecção de desinformação. O objetivo é garantir a transparência sobre a qualidade dos dados e a robustez do modelo.
 
 ---
 
 ## 1. Contexto e Origem
-O projeto utiliza um **Dataset Unificado**, composto por três fontes distintas para garantir a generalização do modelo:
+O projeto utiliza um **Dataset Unificado**, combinando três fontes distintas para mitigar o vício de estilo (*overfitting* de dataset) e aumentar a capacidade de generalização da IA.
 
-*   **Fake.br-Corpus:** Coletado de websites, focado em notícias em português. Foi apresentado em conferências como PROPOR 2018 e publicado na *Expert Systems with Applications* (2020).
-*   **FACTCK.BR:** Coletado via esquema `ClaimReview` de agências de checagem profissionais (Aos Fatos, Lupa e Truco). Foca em alegações específicas e seus respectivos vereditos. Licença MIT.
-*   **FakeRecogna:** Base de dados adicional integrada para expandir o volume de exemplos de desinformação.
+*   **Fake.br-Corpus:** Base acadêmica focada em notícias brasileiras, publicada na *Expert Systems with Applications* (2020). Oferece pares balanceados de notícias verdadeiras e falsas.
+*   **FACTCK.BR:** Base de dados proveniente de agências de checagem profissionais (Aos Fatos, Lupa, Truco) via esquema `ClaimReview`. Foca em alegações específicas e vereditos técnicos. Licença MIT.
+*   **FakeRecogna:** Base de dados adicional integrada para expandir a volumetria de exemplos e diversificar os padrões de escrita.
 
-**População/Amostra:** Notícias e alegações em língua portuguesa circulando na internet.
-**Viés de Seleção:** Os dados vêm de fontes que já foram identificadas como "fake" ou "true" por curadores ou agências. Notícias "cinzentas" (sem veredito claro) podem estar sub-representadas.
-**Restrições:** O FACTCK.BR segue a licença MIT.
+**População:** Notícias e alegações em língua portuguesa circulando em ambiente web.
+**Viés de Seleção:** Há um viés intrínseco, pois os dados provêm de fontes que já foram identificadas como "fake" ou "true" por curadores ou agências. Notícias "cinzentas" (sem veredito claro) são excluídas, o que pode tornar o modelo excessivamente confiante em casos claros, mas vulnerável a nuances.
 
 ---
 
-## 2. Estrutura
-O volume total de dados unificados é de aproximadamente **20.416 registros**.
+## 2. Estrutura e Volumetria
+O volume total do dataset unificado é de **19.103 registros**.
 
-### Composição por Fonte:
-| Fonte | Registros | Colunas Originais | Tipo de Dado | Chave Única |
+### Composição Detalhada:
+| Fonte | Registros | Colunas Chave | Tipo de Dado | Chave Única |
 | :--- | :--- | :--- | :--- | :--- |
-| **FakeRecogna** | 11.903 | 8 | Misto (Texto, Data, Categórico) | Não explícita |
-| **Fake.br-Corpus**| 7.200 | 2 | Texto | Nome do arquivo |
-| **FACTCK.BR** | 1.313 | 9 | Misto (URL, Texto, Data, Rating) | URL |
+| **FakeRecogna** | 11.903 | `text`, `label`, `title` | Misto | N/A |
+| **Fake.br-Corpus**| 7.200 | `text`, `label` | Texto | ID do Arquivo |
+| **FACTCK.BR** | 1.313 | `text`, `label`, `URL` | Misto | URL |
 
-**Representação da Linha:** Cada linha representa uma notícia ou uma alegação (claim) individual.
-**Variáveis Principais (Unificadas):**
-*   `text`: O conteúdo textual da notícia ou a junção da alegação com a revisão (Texto).
-*   `label`: a classificação final: `fake` ou `true` (Categórica).
-*   `source`: a origem do dado (Categórica).
+**Representação da Unidade:** Cada registro representa um documento textual único (notícia completa ou alegação + revisão).
+**Variáveis Unificadas:**
+*   `text` (String): Conteúdo textual processado.
+*   `label` (Categorical): Binário (`fake` ou `true`).
+*   `source` (Categorical): Identificador da base de origem.
 
 ---
 
-## 3. Qualidade
-**Valores Nulos:**
-*   **FakeRecogna:** Apresenta nulidade significativa na coluna `Subtitulo` (~53% nulos) e pontuais em `Titulo` e `Data`.
-*   **FACTCK.BR:** Nulidades baixas em `claimReviewed` e `reviewBody`.
-*   **Fake.br-Corpus:** Sem nulos (baseada em arquivos `.txt`).
+## 3. Análise de Qualidade e Ruído
+A auditoria de qualidade revelou pontos críticos que impactam diretamente a modelagem:
 
-**Consistência:** 
-Os formatos de data e labels variam entre as fontes (ex: `0/1` no Recogna, `Falso/Verdadeiro` no FactCK), exigindo a etapa de normalização implementada no `hybrid_model.py`.
+### 📉 Valores Nulos e Completude
+*   **FakeRecogna:** Apresenta a maior fragilidade em metadados. A coluna `subtitle` possui **~53% de nulidade**, tornando-a irrelevante para a modelagem.
+*   **FACTCK.BR:** Alta completude nas colunas de veredito, mas a construção do campo `text` exige a concatenação de `claim` e `review` para evitar perda de contexto.
 
-**Outliers:** 
-Não foram detectados valores impossíveis, mas existem textos extremamente curtos (especialmente no FactCK.BR) que podem atuar como ruído para modelos de NLP.
+### 📏 Distribuição de Tamanho de Texto (Sinal vs Ruído)
+A variância no comprimento dos textos é extrema, o que representa um desafio para modelos de NLP:
+*   **Média:** 1.833 caracteres.
+*   **Mediana:** 687 caracteres.
+*   **Mínimo:** 5 caracteres (Ruído/Outlier).
+*   **Máximo:** 46.084 caracteres (Documentos longos).
+
+**Impacto Técnico:** Textos extremamente curtos (ex: 5 chars) podem ser classificados erroneamente por falta de contexto. Textos excessivamente longos são truncados pelo BERT (limite de 512 tokens), o que pode causar a perda de informações cruciais localizadas no final do texto.
 
 ---
 
 ## 4. Distribuição e Relações
-**Distribuição de Classes:**
-*   **FakeRecogna:** Perfeitamente balanceado (50% fake / 50% true).
-*   **Fake.br-Corpus:** Perfeitamente balanceado (50% fake / 50% true).
-*   **FACTCK.BR:** Fortemente desbalanceado para a classe `fake` (predomínio de desmentidos).
+### Balanceamento de Classes
+O dataset final apresenta um **balanceamento perfeito (50% Fake / 50% True)**. Isso é resultado da composição equilibrada entre as bases `Fake.br` e `FakeRecogna`, que compensam o desbalanceamento natural do `FACTCK.BR` (onde a maioria dos registros são desmentidos).
 
-**Relações:**
-Observou-se que a "forma" da notícia (estilometria) é um forte indicador em datasets menores, mas a "semântica" (sentido) torna-se crucial quando unificamos as bases, pois o estilo de "mentir" varia entre as fontes.
-
----
-
-## 5. Perguntas de Negócio e Pesquisa
-**Problema a Resolver:** Como identificar automaticamente se um texto é desinformação, independentemente da fonte ou do estilo do autor?
-
-**Perguntas que os dados respondem:**
-*   Existe um padrão gramatical comum em notícias falsas? (Sim, via estilometria).
-*   A IA consegue generalizar entre diferentes bases de dados? (Sim, via modelo híbrido).
-
-**Perguntas que os dados NÃO respondem:**
-*   Qual a intenção do autor ao criar a fake news?
-*   Qual o impacto real (estatístico) da notícia na população?
-
-**Variável Alvo:** `label` (Prever se a notícia é `fake` ou `true`).
+### Correlação Semântica vs Estilométrica
+*   **Estilometria:** Funciona bem em bases controladas (ex: `Fake.br`), onde o "estilo" de mentir é consistente.
+*   **Semântica:** Torna-se o diferencial ao unificar as bases, java a IA deixa de buscar "palavras-chave" e passa a analisar a estrutura lógica e o contexto do texto.
 
 ---
 
-## 6. Ética e Uso Responsável
-**Dados Sensíveis:** O dataset contém nomes de autores e URLs. Embora sejam dados públicos, a divulgação de listas de "autores de fake news" pode gerar implicações legais ou éticas.
-**Vieses e Discriminação:** O modelo pode aprender a associar certas palavras-chave ou temas (ex: política, religião) automaticamente a `fake` apenas porque a amostra de treino era concentrada nesses temas, gerando falsos positivos em notícias verdadeiras sobre os mesmos assuntos.
-**Impacto:** Conclusões erradas podem levar à censura de informações verdadeiras ou à propagação de mentiras caso a confiança no modelo seja absoluta sem revisão humana.
+## 5. Definições de Pesquisa
+**Objetivo:** Desenvolver um classificador robusto capaz de detectar desinformação independentemente da fonte, autor ou estilo de escrita.
+
+**Perguntas Respondidas:**
+*   A estrutura gramatical (densidade de verbos e adjetivos) é um indicador confiável? **Sim.**
+*   O modelo consegue generalizar entre bases de dados diferentes? **Sim, via abordagem híbrida.**
+
+**Limitações dos Dados:**
+*   O dataset não informa a **intenção** do autor (Sátira vs. Má-fé).
+*   Não há dados sobre a **viralização** da notícia, impedindo a análise de impacto social.
+
+---
+
+## 6. Ética e Governança de Dados
+**Privacidade:** O dataset contém URLs e nomes de autores públicos. Embora sejam dados abertos, o sistema deve evitar a criação de "listas negras" de autores para evitar vieses punitivos.
+**Risco de Viés:** O modelo pode correlacionar temas específicos (ex: política ou vacinas) automaticamente a `fake` apenas porque esses temas são predominantes nas amostras de desinformação.
+**Mitigação:** A recomendação é que o modelo seja utilizado como uma **ferramenta de apoio à decisão**, e nunca como um juiz final e automatizado de verdade.
