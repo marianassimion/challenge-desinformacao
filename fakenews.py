@@ -308,7 +308,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, I
 import uuid
 import pandas as pd
 
-TOKEN = "8800042993:AAGCfClabRLOkrd3JwQkuvxQb8qSHuDznuQ"
+TOKEN = "SEU-TOKEN-AQUI"
 
 # --- Usa o modelo_rf real, treinado na Célula 13 ---
 def analisar_noticia(texto):
