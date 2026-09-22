@@ -2,11 +2,15 @@ import pandas as pd
 import os
 import glob
 import numpy as np
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
 
 def analyze():
     # Load Recogna
     try:
-        arquivo_fakerecogna = glob.glob("FakeRecogna/**/*.xlsx", recursive=True)[0]
+        arquivo_fakerecogna = next((DATA_DIR / "FakeRecogna").rglob("*.xlsx"))
         df_recogna = pd.read_excel(arquivo_fakerecogna)
         df_recogna = df_recogna.rename(columns={"Titulo": "title", "Subtitulo": "subtitle", "Noticia": "text", "Classe": "label"})
         df_recogna["label"] = df_recogna["label"].map({0: "fake", 1: "true"})
@@ -15,11 +19,11 @@ def analyze():
 
     # Load Fake.br
     try:
-        base_fakebr = "Fake.br-Corpus/full_texts"
+        base_fakebr = DATA_DIR / "Fake.br-Corpus" / "full_texts"
         registros_fakebr = []
         for label in ["fake", "true"]:
-            pasta = os.path.join(base_fakebr, label)
-            for arquivo in glob.glob(os.path.join(pasta, "*.txt")):
+            pasta = base_fakebr / label
+            for arquivo in pasta.glob("*.txt"):
                 with open(arquivo, "r", encoding="utf-8", errors="ignore") as f:
                     registros_fakebr.append({"text": f.read().strip(), "label": label})
         df_fakebr = pd.DataFrame(registros_fakebr)
@@ -28,7 +32,7 @@ def analyze():
 
     # Load FactCK
     try:
-        df_factck = pd.read_csv("FACTCK.BR/FACTCKBR.tsv", sep="\t")
+        df_factck = pd.read_csv(DATA_DIR / "FACTCK.BR" / "FACTCKBR.tsv", sep="\t")
         df_factck["label"] = df_factck["alternativeName"].apply(lambda x: "fake" if str(x).lower() == "falso" else ("true" if str(x).lower() == "verdadeiro" else None))
         df_factck = df_factck.dropna(subset=["label"])
         df_factck["text"] = df_factck["review"].fillna("") + " " + df_factck["claim"].fillna("")

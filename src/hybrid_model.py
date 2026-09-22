@@ -5,6 +5,7 @@ import glob
 import spacy
 import torch
 import joblib
+from pathlib import Path
 from transformers import AutoTokenizer, AutoModel
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
@@ -15,7 +16,10 @@ from tqdm import tqdm
 BERT_MODEL = "neuralmind/bert-base-portuguese-cased"
 MAX_LEN = 128
 BATCH_SIZE = 32
-MODEL_SAVE_PATH = "rf_model.joblib"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+MODELS_DIR = PROJECT_ROOT / "models"
+MODEL_SAVE_PATH = MODELS_DIR / "rf_model.joblib"
 
 # Load Spacy
 try:
@@ -29,7 +33,7 @@ def load_datasets():
     print("Loading and unifying datasets...")
     # 1. FakeRecogna
     try:
-        arquivo_fakerecogna = glob.glob("FakeRecogna/**/*.xlsx", recursive=True)[0]
+        arquivo_fakerecogna = next((DATA_DIR / "FakeRecogna").rglob("*.xlsx"))
         df_recogna = pd.read_excel(arquivo_fakerecogna)
         df_recogna = df_recogna.rename(columns={
             "Titulo": "title", "Subtitulo": "subtitle", "Noticia": "text",
@@ -44,11 +48,11 @@ def load_datasets():
 
     # 2. Fake.br-Corpus
     try:
-        base_fakebr = "Fake.br-Corpus/full_texts"
+        base_fakebr = DATA_DIR / "Fake.br-Corpus" / "full_texts"
         registros_fakebr = []
         for label in ["fake", "true"]:
-            pasta = os.path.join(base_fakebr, label)
-            arquivos = glob.glob(os.path.join(pasta, "*.txt"))
+            pasta = base_fakebr / label
+            arquivos = pasta.glob("*.txt")
             for arquivo in arquivos:
                 with open(arquivo, "r", encoding="utf-8", errors="ignore") as f:
                     texto = f.read().strip()
@@ -60,7 +64,7 @@ def load_datasets():
 
     # 3. FACTCK.BR
     try:
-        df_factck = pd.read_csv("FACTCK.BR/FACTCKBR.tsv", sep="\t")
+        df_factck = pd.read_csv(DATA_DIR / "FACTCK.BR" / "FACTCKBR.tsv", sep="\t")
         df_factck = df_factck.rename(columns={
             "URL": "link", "Author": "author", "datePublished": "date",
             "claimReviewed": "claim", "reviewBody": "review", "title": "title",
@@ -137,6 +141,7 @@ def main():
     print("\n--- HYBRID MODEL REPORT ---")
     print(classification_report(y_test, y_pred, target_names=['Verdadeiro (0)', 'Falso (1)']))
     print(f"Saving model to {MODEL_SAVE_PATH}...")
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(clf, MODEL_SAVE_PATH)
     print("Model saved successfully!")
 

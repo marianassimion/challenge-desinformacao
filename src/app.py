@@ -7,11 +7,14 @@ import torch
 import joblib
 from transformers import AutoTokenizer, AutoModel
 import uvicorn
+from pathlib import Path
 
 # --- CONFIGURATION ---
 BERT_MODEL = "neuralmind/bert-base-portuguese-cased"
 MAX_LEN = 128
-MODEL_SAVE_PATH = "rf_model.joblib"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+MODELS_DIR = PROJECT_ROOT / "models"
+MODEL_SAVE_PATH = MODELS_DIR / "rf_model.joblib"
 
 app = FastAPI(title="Fake News Detector API", description="API for detecting fake news using a Hybrid BERT + Stylometric model")
 
