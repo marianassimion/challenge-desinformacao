@@ -1,1 +1,24 @@
-.claude/
+# Byte Compiled Files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.venv/
+venv/
+env/
+.env
+
+# ML Data and Models (Versioned by DVC)
+data/
+models/*.joblib
+models/*.pth
+models/*.h5
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/

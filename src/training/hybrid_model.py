@@ -5,17 +5,19 @@ import glob
 import spacy
 import torch
 import joblib
+import mlflow
+import mlflow.sklearn
 from transformers import AutoTokenizer, AutoModel
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, accuracy_score, precision_score, recall_score, f1_score
 from tqdm import tqdm
 
 # --- CONFIGURATION ---
 BERT_MODEL = "neuralmind/bert-base-portuguese-cased"
 MAX_LEN = 128
 BATCH_SIZE = 32
-MODEL_SAVE_PATH = "rf_model.joblib"
+MODEL_SAVE_PATH = "models/rf_model.joblib" # Updated path
 
 # Load Spacy
 try:
@@ -29,7 +31,7 @@ def load_datasets():
     print("Loading and unifying datasets...")
     # 1. FakeRecogna
     try:
-        arquivo_fakerecogna = glob.glob("FakeRecogna/**/*.xlsx", recursive=True)[0]
+        arquivo_fakerecogna = glob.glob("data/FakeRecogna/**/*.xlsx", recursive=True)[0]
         df_recogna = pd.read_excel(arquivo_fakerecogna)
         df_recogna = df_recogna.rename(columns={
             "Titulo": "title", "Subtitulo": "subtitle", "Noticia": "text",
@@ -44,7 +46,7 @@ def load_datasets():
 
     # 2. Fake.br-Corpus
     try:
-        base_fakebr = "Fake.br-Corpus/full_texts"
+        base_fakebr = "data/Fake.br-Corpus/full_texts"
         registros_fakebr = []
         for label in ["fake", "true"]:
             pasta = os.path.join(base_fakebr, label)
@@ -60,7 +62,7 @@ def load_datasets():
 
     # 3. FACTCK.BR
     try:
-        df_factck = pd.read_csv("FACTCK.BR/FACTCKBR.tsv", sep="\t")
+        df_factck = pd.read_csv("data/FACTCK.BR/FACTCKBR.tsv", sep="\t")
         df_factck = df_factck.rename(columns={
             "URL": "link", "Author": "author", "datePublished": "date",
             "claimReviewed": "claim", "reviewBody": "review", "title": "title",
@@ -120,25 +122,56 @@ def get_bert_embeddings(texts):
     return np.vstack(embeddings)
 
 def main():
-    df = load_datasets()
-    print(f"Unified Dataset Size: {df.shape}")
-    print("Extracting stylometric features...")
-    stylometry = np.array([get_stylometric_features(t) for t in tqdm(df["text"])])
-    texts = df["text"].tolist()
-    bert_features = get_bert_embeddings(texts)
-    print("Fusing features...")
-    X = np.hstack([bert_features, stylometry])
-    y = df["label"].map({"fake": 1, "true": 0}).values
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-    print("Training Hybrid Random Forest Model...")
-    clf = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1)
-    clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_test)
-    print("\n--- HYBRID MODEL REPORT ---")
-    print(classification_report(y_test, y_pred, target_names=['Verdadeiro (0)', 'Falso (1)']))
-    print(f"Saving model to {MODEL_SAVE_PATH}...")
-    joblib.dump(clf, MODEL_SAVE_PATH)
-    print("Model saved successfully!")
+    # MLflow setup
+    mlflow.set_experiment("Fake_News_Detection_Hybrid")
+
+    with mlflow.start_run():
+        # Log Hyperparameters
+        mlflow.log_param("bert_model", BERT_MODEL)
+        mlflow.log_param("rf_n_estimators", 200)
+        mlflow.log_param("max_len", MAX_LEN)
+
+        df = load_datasets()
+        print(f"Unified Dataset Size: {df.shape}")
+        mlflow.log_param("dataset_size", df.shape[0])
+
+        print("Extracting stylometric features...")
+        stylometry = np.array([get_stylometric_features(t) for t in tqdm(df["text"])])
+        texts = df["text"].tolist()
+        bert_features = get_bert_embeddings(texts)
+
+        print("Fusing features...")
+        X = np.hstack([bert_features, stylometry])
+        y = df["label"].map({"fake": 1, "true": 0}).values
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+        print("Training Hybrid Random Forest Model...")
+        clf = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1)
+        clf.fit(X_train, y_train)
+
+        y_pred = clf.predict(X_test)
+
+        # Log Metrics
+        acc = accuracy_score(y_test, y_pred)
+        prec = precision_score(y_test, y_pred)
+        rec = recall_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+
+        mlflow.log_metric("accuracy", acc)
+        mlflow.log_metric("precision", prec)
+        mlflow.log_metric("recall", rec)
+        mlflow.log_metric("f1_score", f1)
+
+        print("\n--- HYBRID MODEL REPORT ---")
+        print(classification_report(y_test, y_pred, target_names=['Verdadeiro (0)', 'Falso (1)']))
+
+        print(f"Saving model to {MODEL_SAVE_PATH}...")
+        joblib.dump(clf, MODEL_SAVE_PATH)
+
+        # Log Model to MLflow
+        mlflow.sklearn.log_model(clf, "random_forest_model")
+
+        print("Model saved successfully and logged to MLflow!")
 
 if __name__ == "__main__":
     main()
