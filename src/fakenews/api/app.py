@@ -74,7 +74,7 @@ async def predict(request: NewsRequest):
         try:
             print(f"Extracting text from URL: {request.url}")
             from fakenews.processing.scraper import extract_text_from_url
-            extracted_text = extract_text_from_url(request.url)
+            extracted_text = await extract_text_from_url(request.url)
             text_to_analyze = extracted_text
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Erro ao extrair texto da URL: {str(e)}")
