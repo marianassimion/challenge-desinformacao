@@ -60,7 +60,7 @@ Acesse `http://localhost:5000` no seu navegador.
 
 ---
 
-## 🔄 Fluxo de Trabalho Recomendado (Clean Code Workflow)
+## 🔄 Fluxo de Trabalho Recomendado (Clean3 Code Workflow)
 
 Para manter o projeto organizado e evitar conflitos, siga este fluxo:
 
