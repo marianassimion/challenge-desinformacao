@@ -60,17 +60,18 @@ Acesse `http://localhost:5000` no seu navegador.
 
 ---
 
-## 🔄 Fluxo de Trabalho Recomendado
+## 🔄 Fluxo de Trabalho Recomendado (Clean Code Workflow)
 
-Se você for realizar um novo treinamento ou alterar os dados:
+Para manter o projeto organizado e evitar conflitos, siga este fluxo:
 
-1. **Crie uma nova branch** para o experimento: `git checkout -b feat/novo-treino`.
-2. **Execute o treino:** `python3 src/training/hybrid_model.py`. (O MLflow registrará as métricas automaticamente).
-3. **Versione o novo modelo/dados:**
+1. **Sempre trabalhe em branches separadas:** `git checkout -b feat/nova-funcionalidade` ou `git checkout -b fix/correcao-bug`.
+2. **Sincronize a branch de testes:** Antes de finalizar, faça o merge de suas alterações na branch `testes` para validação.
+3. **Execução da API:** Devido à estrutura de pacotes do projeto, utilize sempre o comando de módulo:
    ```bash
-   dvc add data/ models/rf_model.joblib
-   git add data/.gitignore models/.gitignore *.dvc
-   git commit -m "Melhoria na acurácia: alteração no pré-processamento"
+   export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+   python3 -m fakenews.api.app
    ```
-4. **Envie para o storage remoto:** `dvc push`.
-5. **Faça o Merge** da branch após validar os resultados no MLflow.
+4. **Merge Final:** Após a validação na branch `testes`, a alteração deve ser fundida na `main`.
+
+---
+**Desenvolvido por:** Time 7 / Arquiteto de Software

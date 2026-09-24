@@ -36,7 +36,6 @@ pip install dvc
 # Baixe os dados e o modelo do storage remoto
 dvc pull
 ```
-*(Se você não configurou um storage remoto, certifique-se de que as pastas `data/` e `models/` foram compartilhadas via drive/nuvem e copiadas para a raiz do projeto).*
 
 ---
 
@@ -47,18 +46,23 @@ Existem duas maneiras principais de testar a IA: via **API Interativa** (mais f�
 ### Método A: Teste via API (Recomendado)
 Este método testa o modelo em "tempo real", simulando o uso final do produto.
 
-1. **Inicie o servidor:**
+1. **Inicie o servidor (Caminho Profissional):**
    ```bash
-   python3 src/api/app.py
+   # Define o caminho dos módulos para evitar ModuleNotFoundError
+   export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+   
+   # Inicia a API como módulo do Python
+   python3 -m fakenews.api.app
    ```
 2. **Acesse a interface visual (Swagger):**
    Abra o navegador em: 👉 `http://localhost:8000/docs`
 3. **Como testar:**
    - Clique no botão **POST `/predict`**.
    - Clique em **"Try it out"**.
-   - No campo `text`, cole a notícia que deseja testar.
+   - Você pode preencher o campo `text` (texto bruto) ou o campo `url` (link da notícia).
    - Clique em **"Execute"**.
-   - **Analise a resposta:** Verifique a `prediction` (fake/true), a `confidence` e o `score_emocional`.
+   - **Analise a resposta:** Verifique a `prediction` (fake/true), a `confidence` e as métricas estilométricas.
+   - **Verifique a Latência:** Olhe para o terminal onde o servidor está rodando; você verá o tempo exato de processamento da requisição (ex: `Request to /predict took 0.45s`).
 
 ### Método B: Teste de Validação (Métricas)
 Se você quiser testar a acurácia do modelo em todo o dataset de teste:
@@ -70,7 +74,7 @@ Se você quiser testar a acurácia do modelo em todo o dataset de teste:
 2. **O que observar:**
    Ao final da execução, o script imprimirá o **Classification Report**. Foque nestas métricas:
    - **Accuracy:** Percentual total de acertos.
-   - **F1-Score:** Equilíbrio entre Precisão e Recall (essencial para datasets desbalanceados).
+   - **F1-Score:** Equilíbrio entre Precisão e Recall.
 
 ---
 
@@ -82,10 +86,12 @@ Se você quiser testar a acurácia do modelo em todo o dataset de teste:
 | **True** | A IA considerou a notícia legítima. | Verifique se o texto possui uma estrutura gramatical mais neutra e formal. |
 | **Confidence** | Nível de certeza da IA (0.0 a 1.0). | Valores abaixo de 0.7 indicam que a IA está em dúvida. |
 
-## 🚩 Reportando Erros
-Se você encontrar um caso onde a IA errou feio (Falso Positivo ou Falso Negativo), anote:
-1. O texto da notícia.
-2. O resultado esperado vs. o resultado da IA.
-3. O `score_emocional` retornado.
+---
 
-Isso nos ajudará a melhorar o modelo no próximo ciclo de retreino!
+## 🚩 Reportando Erros
+Se você encontrar um caso onde a IA errou feio, anote:
+1. O texto ou link da notícia.
+2. O resultado esperado vs. o resultado da IA.
+3. O tempo de resposta (latência).
+
+Isso nos ajudará a otimizar o modelo e a performance do sistema!
