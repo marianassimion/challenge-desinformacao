@@ -164,7 +164,7 @@ def main():
         joblib.dump(clf, RF_MODEL_PATH)
 
         # Log Model to MLflow
-        mlflow.sklearn.log_model(clf, "random_forest_model")
+        mlflow.sklearn.log_model(clf, "random_forest_model", skops_trusted_types=["sklearn.tree._tree.Tree"])
 
         print("Model saved successfully and logged to MLflow!")
 
