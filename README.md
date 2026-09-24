@@ -12,17 +12,20 @@ Essas duas dimensões são fundidas e classificadas por uma **Random Forest**, c
 
 ---
 
-## 🛠️ Arquitetura Técnica
+## 🛠️ Arquitetura Técnica (Refatorada)
+
+O projeto segue princípios de **Clean Code** e **Arquitetura em Camadas** para garantir manutenibilidade e escalabilidade.
+
+### 📂 Estrutura de Pastas
+- **`src/fakenews/core/`**: O "coração" do projeto.
+    - `model_manager.py`: Gerencia a carga de modelos via padrão **Singleton** (carrega modelos apenas uma vez na memória).
+    - `features.py`: Classe `FeatureExtractor` responsável por transformar texto bruto em vetores numéricos.
+- **`src/fakenews/api/`**: Camada de interface.
+    - `app.py`: Servidor FastAPI que expõe a predição para o mundo externo.
+- **`src/fakenews/processing/`**: Ferramentas de extração, como o `scraper.py` para leitura de URLs.
 
 ### Pipeline de Dados
 `Datasets (Fake.br, FakeRecogna, FACTCK.BR)` $\rightarrow$ `Limpeza e Unificação` $\rightarrow$ `Extração de Features (BERT + Spacy)` $\rightarrow$ `Random Forest` $\rightarrow$ `Modelo Serializado (.joblib)` $\rightarrow$ `API FastAPI`.
-
-### Componentes do Projeto
-- **`hybrid_model.py`**: Script de treinamento. Responsável por processar os dados, gerar os embeddings e salvar o modelo final.
-- **`app.py`**: API de produção. Carrega o modelo salvo e oferece endpoints para predição em tempo real.
-- **`rf_model.joblib`**: O arquivo binário do modelo treinado.
-- **`STRATEGY_AND_ANALYSIS.md`**: Documento de visão de produto e roadmap.
-- **`PROJECT_REPORT.md`**: Relatório de experimentos e resultados de acurácia.
 
 ---
 
@@ -46,9 +49,14 @@ python3 hybrid_model.py
 *Este processo baixará o BERTimbau e processará ~20k notícias. Pode levar alguns minutos.*
 
 ### 4. Executando a API
-Com o modelo treinado (`rf_model.joblib` presente na pasta), inicie o servidor:
+Para rodar o servidor corretamente e evitar erros de importação de módulos, utilize o comando abaixo na raiz do projeto:
+
 ```bash
-python3 app.py
+# 1. Define o caminho dos módulos para o Python
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+
+# 2. Inicia a API como módulo
+python3 -m fakenews.api.app
 ```
 O servidor estará disponível em `http://localhost:8000`.
 
@@ -56,11 +64,18 @@ O servidor estará disponível em `http://localhost:8000`.
 Você pode testar a IA através da interface interativa do FastAPI em:
 👉 `http://localhost:8000/docs`
 
-Ou via `curl`:
+Ou via `curl` (Enviando Texto):
 ```bash
 curl -X 'POST' 'http://localhost:8000/predict' \
   -H 'Content-Type: application/json' \
   -d '{"text": "URGENTE! Bomba revelada sobre a economia brasileira, compartilhe antes que apaguem!"}'
+```
+
+Ou via `curl` (Enviando URL):
+```bash
+curl -X 'POST' 'http://localhost:8000/predict' \
+  -H 'Content-Type: application/json' \
+  -d '{"url": "https://g1.globo.com/exemplo-de-noticia"}'
 ```
 
 ---
