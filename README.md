@@ -38,13 +38,17 @@ Você precisará do Python 3.10+ instalado em sua máquina.
 Clone o repositório e instale as bibliotecas necessárias:
 ```bash
 pip install -r requirements.txt
+# Nota: Se houver erro de versão, tente usar: python3 -m pip install -r requirements.txt
+
 python3 -m spacy download pt_core_news_sm
+# Nota: Se der erro, tente usar: python -m spacy download pt_core_news_sm
 ```
 
 ### 3. Treinando o Modelo
 Para treinar o modelo do zero e gerar o arquivo `.joblib`:
 ```bash
-python3 hybrid_model.py
+python3 src/fakenews/training/hybrid_model.py
+# Nota: Se der erro, tente usar: python -m fakenews.training.hybrid_model
 ```
 *Este processo baixará o BERTimbau e processará ~20k notícias. Pode levar alguns minutos.*
 
@@ -57,6 +61,7 @@ export PYTHONPATH=$PYTHONPATH:$(pwd)/src
 
 # 2. Inicia a API como módulo
 python3 -m fakenews.api.app
+# Nota: Se houver erro de comando não encontrado, tente usar: python -m fakenews.api.app
 ```
 O servidor estará disponível em `http://localhost:8000`.
 

@@ -54,7 +54,7 @@ dvc pull
 Para ver a comparação de todos os treinos realizados pela equipe:
 ```bash
 # Inicie o servidor do MLflow
-mlflow ui
+python3 -m mlflow ui
 ```
 Acesse `http://localhost:5000` no seu navegador.
 

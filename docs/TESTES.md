@@ -22,9 +22,11 @@ cd challenge-desinformacao
 
 # 2. Instale as dependências
 pip install -r requirements.txt
+# Nota: Se houver erro de versão, tente usar: python3 -m pip install -r requirements.txt
 
 # 3. Baixe o modelo de linguagem do Spacy para Português
 python3 -m spacy download pt_core_news_sm
+# Nota: Se der erro, tente usar: python -m spacy download pt_core_news_sm
 ```
 
 ### Recuperação de Dados e Modelos (DVC)
@@ -53,6 +55,7 @@ Este método testa o modelo em "tempo real", simulando o uso final do produto.
    
    # Inicia a API como módulo do Python
    python3 -m fakenews.api.app
+   # Nota: Se houver erro de comando não encontrado, tente usar: python -m fakenews.api.app
    ```
 2. **Acesse a interface visual (Swagger):**
    Abra o navegador em: 👉 `http://localhost:8000/docs`
@@ -69,7 +72,8 @@ Se você quiser testar a acurácia do modelo em todo o dataset de teste:
 
 1. **Execute o script de treinamento/validação:**
    ```bash
-   python3 src/training/hybrid_model.py
+   python3 src/fakenews/training/hybrid_model.py
+   # Nota: Se der erro, tente usar: python -m fakenews.training.hybrid_model
    ```
 2. **O que observar:**
    Ao final da execução, o script imprimirá o **Classification Report**. Foque nestas métricas:
