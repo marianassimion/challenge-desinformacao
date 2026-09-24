@@ -7,8 +7,13 @@ PROJECT_ROOT = "/Users/aluno2/Documents/challenge-desinformacao"
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
 
-from fastapi import FastAPI, HTTPException
+import time
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
+import numpy as np
+import uvicorn
+from contextlib import asynccontextmanager
+from typing import Optional
 import numpy as np
 import uvicorn
 from contextlib import asynccontextmanager
@@ -31,6 +36,16 @@ app = FastAPI(
     description="API for detecting fake news using a Hybrid BERT + Stylometric model",
     lifespan=lifespan
 )
+
+# Middleware to measure latency
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    print(f"Request to {request.url.path} took {process_time:.4f}s")
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
 
 class NewsRequest(BaseModel):
     text: Optional[str] = None
