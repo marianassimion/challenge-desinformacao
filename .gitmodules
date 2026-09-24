@@ -1,0 +1,9 @@
+[submodule "data/FACTCK.BR"]
+	path = data/FACTCK.BR
+	url = https://github.com/jghm-f/FACTCK.BR.git
+[submodule "data/Fake.br-Corpus"]
+	path = data/Fake.br-Corpus
+	url = https://github.com/roneysco/Fake.br-Corpus.git
+[submodule "data/FakeRecogna"]
+	path = data/FakeRecogna
+	url = https://github.com/Gabriel-Lino-Garcia/FakeRecogna.git

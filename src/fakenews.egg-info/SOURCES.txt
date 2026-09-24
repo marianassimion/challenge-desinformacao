@@ -1,0 +1,17 @@
+README.md
+pyproject.toml
+src/fakenews/__init__.py
+src/fakenews.egg-info/PKG-INFO
+src/fakenews.egg-info/SOURCES.txt
+src/fakenews.egg-info/dependency_links.txt
+src/fakenews.egg-info/requires.txt
+src/fakenews.egg-info/top_level.txt
+src/fakenews/api/__init__.py
+src/fakenews/api/app.py
+src/fakenews/core/__init__.py
+src/fakenews/core/config.py
+src/fakenews/processing/__init__.py
+src/fakenews/processing/model_utils.py
+src/fakenews/training/__init__.py
+src/fakenews/training/hybrid_model.py
+tests/test_core.py

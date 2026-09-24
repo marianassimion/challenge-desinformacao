@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fakenews"
+version = "0.1.0"
+description = "Hybrid Fake News Detector using BERT and Stylometry"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pandas",
+    "numpy",
+    "spacy",
+    "torch",
+    "transformers",
+    "joblib",
+    "scikit-learn",
+    "mlflow",
+    "openpyxl"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
