@@ -22,3 +22,5 @@ Thumbs.db
 # IDEs
 .vscode/
 .idea/
+
+.claude/

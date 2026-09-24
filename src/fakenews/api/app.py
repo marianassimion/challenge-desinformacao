@@ -9,11 +9,10 @@ from transformers import AutoTokenizer, AutoModel
 import uvicorn
 from contextlib import asynccontextmanager
 
-# --- CONFIGURATION ---
-BERT_MODEL = "neuralmind/bert-base-portuguese-cased"
-MAX_LEN = 128
-# Updated path to point to the models directory
-MODEL_SAVE_PATH = "models/rf_model.joblib"
+from fakenews.core.config import (
+    BERT_MODEL_NAME, MAX_SEQUENCE_LENGTH, RF_MODEL_PATH,
+    MIN_TEXT_LENGTH, MIN_INFO_TOKENS
+)
 
 # Global variables to hold models and tokenizer
 resources = {
@@ -37,16 +36,16 @@ async def lifespan(app: FastAPI):
         resources["nlp"] = spacy.load("pt_core_news_sm")
 
     # Load BERT
-    resources["bert_tokenizer"] = AutoTokenizer.from_pretrained(BERT_MODEL)
-    resources["bert_model"] = AutoModel.from_pretrained(BERT_MODEL)
+    resources["bert_tokenizer"] = AutoTokenizer.from_pretrained(BERT_MODEL_NAME)
+    resources["bert_model"] = AutoModel.from_pretrained(BERT_MODEL_NAME)
     resources["bert_model"].eval()
 
     # Load Random Forest
     try:
-        resources["rf_classifier"] = joblib.load(MODEL_SAVE_PATH)
+        resources["rf_classifier"] = joblib.load(RF_MODEL_PATH)
         print("Resources loaded successfully!")
     except FileNotFoundError:
-        print(f"Error: Model file {MODEL_SAVE_PATH} not found. Please train the model first.")
+        print(f"Error: Model file {RF_MODEL_PATH} not found. Please train the model first.")
 
     yield
     # Shutdown logic (if any)
@@ -70,22 +69,24 @@ def is_valid_news(text):
     """
     Validates if the input text is likely a news piece or just a random message.
     Criteria:
-    1. Minimum length (40 characters).
-    2. Minimum information density (at least 2 nouns or verbs).
+    1. Minimum length (defined in config).
+    2. Minimum information density (defined in config).
     """
-    if len(text.strip()) < 40:
-        return False, "O texto é muito curto para ser analisado como uma notícia."
+    if len(text.strip()) < MIN_TEXT_LENGTH:
+        return False, f"O texto é muito curto para ser analisado como uma notícia (mínimo {MIN_TEXT_LENGTH} caracteres)."
 
     doc = resources["nlp"](text[:5000])
     # Count nouns (NOUN, PROPN) and verbs (VERB)
     info_tokens = sum(1 for token in doc if token.pos_ in ["NOUN", "PROPN", "VERB"])
 
-    if info_tokens < 3:
-        return False, "O texto não contém informações suficientes (falta de substantivos ou verbos) para ser classificado como notícia."
+    if info_tokens < MIN_INFO_TOKENS:
+        return False, f"O texto não contém informações suficientes (falta de substantivos ou verbos, mínimo {MIN_INFO_TOKENS}) para ser classificado como notícia."
 
     return True, ""
 
 def get_stylometric_features(text):
+    # This logic should ideally be in model_utils.py, but keeping it here for API speed
+    # unless you want a shared call.
     nlp_model = resources["nlp"]
     doc = nlp_model(text[:5000])
     tamanho = len(doc) if len(doc) > 0 else 1
@@ -93,24 +94,21 @@ def get_stylometric_features(text):
     adjetivos = sum(1 for token in doc if token.pos_ == "ADJ") / tamanho * 100
     pronomes = sum(1 for token in doc if token.pos_ == "PRON") / tamanho * 100
 
-    palavras_sensacionalistas = [
-        "urgente", "chocante", "bomba", "escândalo", "revelado", "segredo",
-        "não vão acreditar", "atenção", "alerta", "exclusivo", "inacreditável",
-        "impressionante", "cuidado", "compartilhe", "antes que apaguem"
-    ]
+    from fakenews.core.config import SENSATIONALIST_WORDS, SCORE_EXCLAMACAO_MULT, SCORE_SENSACIONAL_MULT
+
     text_lower = text.lower()
     n_exclamacao = text.count("!")
-    n_sensacional = sum(text_lower.count(p) for p in palavras_sensacionalistas)
+    n_sensacional = sum(text_lower.count(p) for p in SENSATIONALIST_WORDS)
     n_maiusculas = sum(1 for p in text.split() if p.isupper() and len(p) > 1)
     palavras = max(len(text.split()), 1)
-    score = min(round((n_exclamacao * 1.5 + n_sensacional * 3 + n_maiusculas) / palavras * 100, 2), 10)
+    score = min(round((n_exclamacao * SCORE_EXCLAMACAO_MULT + n_sensacional * SCORE_SENSACIONAL_MULT + n_maiusculas) / palavras * 100, 2), 10)
 
     return [verbos, adjetivos, pronomes, score]
 
 def get_bert_embedding(text):
     tokenizer = resources["bert_tokenizer"]
     model = resources["bert_model"]
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=MAX_LEN)
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=MAX_SEQUENCE_LENGTH)
     with torch.no_grad():
         outputs = model(**inputs)
     # Use CLS token embedding

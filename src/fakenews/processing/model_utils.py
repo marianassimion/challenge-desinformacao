@@ -2,7 +2,7 @@ import spacy
 import pandas as pd
 import joblib
 import re
-import os
+from fakenews.core.config import SENSATIONALIST_WORDS, SCORE_EXCLAMACAO_MULT, SCORE_SENSACIONAL_MULT, RF_MODEL_PATH
 
 # Carregamento do modelo de linguagem do SpaCy
 try:
@@ -13,11 +13,7 @@ except OSError:
     nlp = spacy.load("pt_core_news_sm")
 
 # Lista de palavras sensacionalistas para o score emocional
-PALAVRAS_SENSACIONALISTAS = [
-    "urgente", "chocante", "bomba", "escândalo", "revelado", "segredo",
-    "não vão acreditar", "atenção", "alerta", "exclusivo", "inacreditável",
-    "impressionante", "cuidado", "compartilhe", "antes que apaguem"
-]
+# (Agora centralizado em fakenews.core.config)
 
 def extrair_features_gramaticais(texto):
     """Extrai a densidade de verbos, adjetivos e pronomes usando SpaCy."""
@@ -38,14 +34,14 @@ def calcular_score_emocional(texto):
     """Calcula o grau de sensacionalismo do texto baseado em heurísticas."""
     texto_lower = texto.lower()
     n_exclamacao = texto.count("!")
-    n_sensacional = sum(texto_lower.count(p) for p in PALAVRAS_SENSACIONALISTAS)
+    n_sensacional = sum(texto_lower.count(p) for p in SENSATIONALIST_WORDS)
     n_maiusculas = sum(1 for p in texto.split() if p.isupper() and len(p) > 1)
 
     palavras = max(len(texto.split()), 1)
-    raw = (n_exclamacao * 1.5 + n_sensacional * 3 + n_maiusculas) / palavras * 100
+    raw = (n_exclamacao * SCORE_EXCLAMACAO_MULT + n_sensacional * SCORE_SENSACIONAL_MULT + n_maiusculas) / palavras * 100
     return min(round(raw, 2), 10)
 
-def prever_risco_desinformacao(texto, modelo_path='rf_model.joblib'):
+def prever_risco_desinformacao(texto, modelo_path=RF_MODEL_PATH):
     """Pipeline completo: Texto -> Features -> Modelo -> Probabilidade."""
     try:
         # 1. Extrair Features

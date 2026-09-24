@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pandas
+numpy
+spacy
+torch
+transformers
+joblib
+scikit-learn
+mlflow
+openpyxl

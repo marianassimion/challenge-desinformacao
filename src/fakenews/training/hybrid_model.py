@@ -13,11 +13,11 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score, precision_score, recall_score, f1_score
 from tqdm import tqdm
 
-# --- CONFIGURATION ---
-BERT_MODEL = "neuralmind/bert-base-portuguese-cased"
-MAX_LEN = 128
-BATCH_SIZE = 32
-MODEL_SAVE_PATH = "models/rf_model.joblib" # Updated path
+from fakenews.core.config import (
+    BERT_MODEL_NAME, MAX_SEQUENCE_LENGTH, BATCH_SIZE,
+    RF_MODEL_PATH, DATA_DIR, SENSATIONALIST_WORDS,
+    SCORE_EXCLAMACAO_MULT, SCORE_SENSACIONAL_MULT, RF_N_ESTIMATORS, RANDOM_STATE
+)
 
 # Load Spacy
 try:
@@ -31,7 +31,7 @@ def load_datasets():
     print("Loading and unifying datasets...")
     # 1. FakeRecogna
     try:
-        arquivo_fakerecogna = glob.glob("data/FakeRecogna/**/*.xlsx", recursive=True)[0]
+        arquivo_fakerecogna = glob.glob(str(DATA_DIR / "FakeRecogna/**/*.xlsx"), recursive=True)[0]
         df_recogna = pd.read_excel(arquivo_fakerecogna)
         df_recogna = df_recogna.rename(columns={
             "Titulo": "title", "Subtitulo": "subtitle", "Noticia": "text",
@@ -46,11 +46,11 @@ def load_datasets():
 
     # 2. Fake.br-Corpus
     try:
-        base_fakebr = "data/Fake.br-Corpus/full_texts"
+        base_fakebr = DATA_DIR / "Fake.br-Corpus/full_texts"
         registros_fakebr = []
         for label in ["fake", "true"]:
-            pasta = os.path.join(base_fakebr, label)
-            arquivos = glob.glob(os.path.join(pasta, "*.txt"))
+            pasta = base_fakebr / label
+            arquivos = glob.glob(str(pasta / "*.txt"), recursive=True)
             for arquivo in arquivos:
                 with open(arquivo, "r", encoding="utf-8", errors="ignore") as f:
                     texto = f.read().strip()
@@ -62,7 +62,7 @@ def load_datasets():
 
     # 3. FACTCK.BR
     try:
-        df_factck = pd.read_csv("data/FACTCK.BR/FACTCKBR.tsv", sep="\t")
+        df_factck = pd.read_csv(str(DATA_DIR / "FACTCK.BR/FACTCKBR.tsv"), sep="\t")
         df_factck = df_factck.rename(columns={
             "URL": "link", "Author": "author", "datePublished": "date",
             "claimReviewed": "claim", "reviewBody": "review", "title": "title",
@@ -93,29 +93,24 @@ def get_stylometric_features(text):
     adjetivos = sum(1 for token in doc if token.pos_ == "ADJ") / tamanho * 100
     pronomes = sum(1 for token in doc if token.pos_ == "PRON") / tamanho * 100
 
-    palavras_sensacionalistas = [
-        "urgente", "chocante", "bomba", "escândalo", "revelado", "segredo",
-        "não vão acreditar", "atenção", "alerta", "exclusivo", "inacreditável",
-        "impressionante", "cuidado", "compartilhe", "antes que apaguem"
-    ]
     text_lower = text.lower()
     n_exclamacao = text.count("!")
-    n_sensacional = sum(text_lower.count(p) for p in palavras_sensacionalistas)
+    n_sensacional = sum(text_lower.count(p) for p in SENSATIONALIST_WORDS)
     n_maiusculas = sum(1 for p in text.split() if p.isupper() and len(p) > 1)
     palavras = max(len(text.split()), 1)
-    score = min(round((n_exclamacao * 1.5 + n_sensacional * 3 + n_maiusculas) / palavras * 100, 2), 10)
+    score = min(round((n_exclamacao * SCORE_EXCLAMACAO_MULT + n_sensacional * SCORE_SENSACIONAL_MULT + n_maiusculas) / palavras * 100, 2), 10)
     return [verbos, adjetivos, pronomes, score]
 
 def get_bert_embeddings(texts):
     print(f"Generating BERT embeddings for {len(texts)} texts...")
-    tokenizer = AutoTokenizer.from_pretrained(BERT_MODEL)
-    model = AutoModel.from_pretrained(BERT_MODEL)
+    tokenizer = AutoTokenizer.from_pretrained(BERT_MODEL_NAME)
+    model = AutoModel.from_pretrained(BERT_MODEL_NAME)
     model.eval()
     embeddings = []
     with torch.no_grad():
         for i in tqdm(range(0, len(texts), BATCH_SIZE)):
             batch = texts[i : i + BATCH_SIZE]
-            inputs = tokenizer(batch, padding=True, truncation=True, max_length=MAX_LEN, return_tensors="pt")
+            inputs = tokenizer(batch, padding=True, truncation=True, max_length=MAX_SEQUENCE_LENGTH, return_tensors="pt")
             outputs = model(**inputs)
             cls_embeddings = outputs.last_hidden_state[:, 0, :].numpy()
             embeddings.append(cls_embeddings)
@@ -127,9 +122,9 @@ def main():
 
     with mlflow.start_run():
         # Log Hyperparameters
-        mlflow.log_param("bert_model", BERT_MODEL)
-        mlflow.log_param("rf_n_estimators", 200)
-        mlflow.log_param("max_len", MAX_LEN)
+        mlflow.log_param("bert_model", BERT_MODEL_NAME)
+        mlflow.log_param("rf_n_estimators", RF_N_ESTIMATORS)
+        mlflow.log_param("max_len", MAX_SEQUENCE_LENGTH)
 
         df = load_datasets()
         print(f"Unified Dataset Size: {df.shape}")
@@ -143,10 +138,10 @@ def main():
         print("Fusing features...")
         X = np.hstack([bert_features, stylometry])
         y = df["label"].map({"fake": 1, "true": 0}).values
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)
 
         print("Training Hybrid Random Forest Model...")
-        clf = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1)
+        clf = RandomForestClassifier(n_estimators=RF_N_ESTIMATORS, random_state=RANDOM_STATE, n_jobs=-1)
         clf.fit(X_train, y_train)
 
         y_pred = clf.predict(X_test)
@@ -165,8 +160,8 @@ def main():
         print("\n--- HYBRID MODEL REPORT ---")
         print(classification_report(y_test, y_pred, target_names=['Verdadeiro (0)', 'Falso (1)']))
 
-        print(f"Saving model to {MODEL_SAVE_PATH}...")
-        joblib.dump(clf, MODEL_SAVE_PATH)
+        print(f"Saving model to {RF_MODEL_PATH}...")
+        joblib.dump(clf, RF_MODEL_PATH)
 
         # Log Model to MLflow
         mlflow.sklearn.log_model(clf, "random_forest_model")
