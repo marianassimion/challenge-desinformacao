@@ -1,19 +1,6 @@
-import os
-import sys
-from pathlib import Path
-
-# Absolute path to the project root to ensure imports work in any environment
-PROJECT_ROOT = "/Users/aluno2/Documents/challenge-desinformacao"
-if PROJECT_ROOT not in sys.path:
-    sys.path.append(PROJECT_ROOT)
-
 import time
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
-import numpy as np
-import uvicorn
-from contextlib import asynccontextmanager
-from typing import Optional
 import numpy as np
 import uvicorn
 from contextlib import asynccontextmanager

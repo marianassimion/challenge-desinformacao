@@ -4,11 +4,11 @@ from pathlib import Path
 from fakenews.core.config import DATA_DIR
 
 def load_datasets():
-    \"\"\"
+    """
     Loads and unifies datasets from multiple sources: FakeRecogna, Fake.br-Corpus, and FACTCK.BR.
     Returns:
         pd.DataFrame: A unified dataframe containing 'text' and 'label' columns.
-    \"\"\"
+    """
     print("Loading and unifying datasets...")
 
     # 1. FakeRecogna

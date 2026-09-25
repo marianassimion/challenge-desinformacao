@@ -31,10 +31,12 @@ class ModelManager:
         print("Loading ML resources...")
         try:
             self.nlp = spacy.load("pt_core_news_sm")
-        except Exception:
-            import subprocess
-            subprocess.run(["python3", "-m", "spacy", "download", "pt_core_news_sm"])
-            self.nlp = spacy.load("pt_core_news_sm")
+        except OSError:
+            raise RuntimeError(
+                "Modelo Spacy 'pt_core_news_sm' não encontrado. Instale-o antes de "
+                "iniciar a API: python -m spacy download pt_core_news_sm "
+                "(veja o README, seção de instalação)."
+            )
 
         self.bert_tokenizer = AutoTokenizer.from_pretrained(BERT_MODEL_NAME)
         self.bert_model = AutoModel.from_pretrained(BERT_MODEL_NAME)
