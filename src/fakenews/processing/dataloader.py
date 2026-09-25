@@ -69,6 +69,14 @@ def load_datasets():
         df_factck = pd.DataFrame()
 
     df_final = pd.concat([df_fakebr, df_recogna, df_factck], ignore_index=True)
+
+    if "text" not in df_final.columns or "label" not in df_final.columns or df_final.empty:
+        raise RuntimeError(
+            "Nenhum dado foi carregado de FakeRecogna, Fake.br-Corpus ou FACTCK.BR. "
+            "Os datasets são git submodules: rode 'git submodule update --init --recursive' "
+            "na raiz do repositório para baixá-los antes de treinar o modelo."
+        )
+
     df_final = df_final.dropna(subset=["text", "label"])
     df_final = df_final[df_final["text"].str.strip() != ""]
 

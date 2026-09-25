@@ -1,4 +1,3 @@
-import os
 import spacy
 import pandas as pd
 import joblib
@@ -9,9 +8,11 @@ from fakenews.core.config import SENSATIONALIST_WORDS, SCORE_EXCLAMACAO_MULT, SC
 try:
     nlp = spacy.load("pt_core_news_sm")
 except OSError:
-    # Comando para instalar caso não esteja no ambiente
-    os.system("python -m spacy download pt_core_news_sm")
-    nlp = spacy.load("pt_core_news_sm")
+    raise RuntimeError(
+        "Modelo Spacy 'pt_core_news_sm' não encontrado. Instale-o antes de "
+        "usar este módulo: python -m spacy download pt_core_news_sm "
+        "(veja o README, seção de instalação)."
+    )
 
 # Lista de palavras sensacionalistas para o score emocional
 # (Agora centralizado em fakenews.core.config)

@@ -17,7 +17,13 @@ dependencies = [
     "joblib",
     "scikit-learn",
     "mlflow",
-    "openpyxl"
+    "openpyxl",
+    "tqdm",
+    "requests",
+    "beautifulsoup4",
+    "newspaper3k",
+    "lxml_html_clean",
+    "playwright"
 ]
 
 [tool.setuptools.packages.find]

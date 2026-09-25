@@ -34,10 +34,16 @@ O projeto segue princípios de **Clean Code** e **Arquitetura em Camadas** para 
 ### 1. Pré-requisitos
 Você precisará do Python 3.10+ instalado em sua máquina.
 
+Os datasets (`FakeRecogna`, `Fake.br-Corpus`, `FACTCK.BR`) são **git submodules** — um `git clone` normal não traz os arquivos, só as pastas vazias. Depois de clonar, rode:
+```bash
+git submodule update --init --recursive
+```
+
 ### 2. Instalação das Dependências
-Clone o repositório e instale as bibliotecas necessárias:
+Instale as bibliotecas necessárias e o próprio pacote em modo editável (isso já resolve os imports de `fakenews.*` em qualquer passo abaixo, sem precisar mexer em `PYTHONPATH`):
 ```bash
 pip install -r requirements.txt
+pip install -e .
 # Nota: Se houver erro de versão, tente usar: python3 -m pip install -r requirements.txt
 
 python3 -m spacy download pt_core_news_sm
@@ -53,13 +59,9 @@ python3 src/fakenews/training/hybrid_model.py
 *Este processo baixará o BERTimbau e processará ~20k notícias. Pode levar alguns minutos.*
 
 ### 4. Executando a API
-Para rodar o servidor corretamente e evitar erros de importação de módulos, utilize o comando abaixo na raiz do projeto:
+Com o pacote instalado via `pip install -e .` (passo 2), basta rodar da raiz do projeto:
 
 ```bash
-# 1. Define o caminho dos módulos para o Python
-export PYTHONPATH=$PYTHONPATH:$(pwd)/src
-
-# 2. Inicia a API como módulo
 python3 -m fakenews.api.app
 # Nota: Se houver erro de comando não encontrado, tente usar: python -m fakenews.api.app
 ```
