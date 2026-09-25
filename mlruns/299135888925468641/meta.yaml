@@ -1,9 +1,0 @@
-artifact_location: file:///Users/aluno2/Documents/challenge-desinformacao/mlruns/299135888925468641
-creation_time: 1790279786293
-effective_trace_archival_retention: null
-experiment_id: '299135888925468641'
-last_update_time: 1790279786293
-lifecycle_stage: active
-name: Fake_News_Detection_Hybrid
-trace_location: null
-workspace: default
