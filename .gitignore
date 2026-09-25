@@ -23,4 +23,4 @@ Thumbs.db
 .vscode/
 .idea/
 
-.claude/
+.claude/.dvc/tmp/
