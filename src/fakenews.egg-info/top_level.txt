@@ -1,4 +1,0 @@
-api
-fakenews
-processing
-training
