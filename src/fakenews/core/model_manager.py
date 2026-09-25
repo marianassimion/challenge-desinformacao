@@ -38,12 +38,21 @@ class ModelManager:
                 "(veja o README, seção de instalação)."
             )
 
-        self.bert_tokenizer = AutoTokenizer.from_pretrained(BERT_MODEL_NAME)
-        self.bert_model = AutoModel.from_pretrained(BERT_MODEL_NAME)
-        self.bert_model.eval()
+        try:
+            self.bert_tokenizer = AutoTokenizer.from_pretrained(BERT_MODEL_NAME)
+            self.bert_model = AutoModel.from_pretrained(BERT_MODEL_NAME)
+            self.bert_model.eval()
+        except Exception as e:
+            raise RuntimeError(
+                f"Não foi possível carregar o modelo BERT '{BERT_MODEL_NAME}'. "
+                "Verifique sua conexão com a internet (o modelo é baixado do "
+                f"Hugging Face na primeira execução) e o nome configurado em "
+                f"fakenews.core.config.BERT_MODEL_NAME. Erro original: {e}"
+            )
 
         try:
             self.rf_classifier = joblib.load(RF_MODEL_PATH)
             print("Resources loaded successfully!")
-        except FileNotFoundError:
-            print(f"Error: Model file {RF_MODEL_PATH} not found.")
+        except Exception as e:
+            print(f"Error: Model file {RF_MODEL_PATH} could not be loaded: {e}")
+            self.rf_classifier = None

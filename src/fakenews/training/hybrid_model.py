@@ -22,6 +22,7 @@ from fakenews.core.config import (
 
 def main():
     # MLflow setup
+    mlflow.set_tracking_uri("sqlite:///mlflow.db")
     mlflow.set_experiment("Fake_News_Detection_Hybrid")
 
     with mlflow.start_run():

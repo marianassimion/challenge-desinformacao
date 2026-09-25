@@ -1,6 +1,6 @@
 import pytest
 from fakenews.core.config import SENSATIONALIST_WORDS, SCORE_EXCLAMACAO_MULT, SCORE_SENSACIONAL_MULT
-from fakenews.processing.model_utils import calcular_score_emocional, extrair_features_gramaticais
+from fakenews.core.features import calcular_score_emocional, extrair_features_gramaticais
 
 def test_calcular_score_emocional_sensacional():
     # Texto com várias palavras sensacionalistas e exclamações

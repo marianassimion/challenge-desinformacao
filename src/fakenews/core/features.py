@@ -21,26 +21,46 @@ def _get_default_nlp():
     return _default_nlp
 
 
+def extrair_features_gramaticais(texto, nlp=None):
+    """
+    Extrai a densidade de verbos, adjetivos e pronomes usando SpaCy.
+    Returns: dict with perc_verbos, perc_adjetivos, perc_pronomes (0-100).
+    """
+    _nlp = nlp or _get_default_nlp()
+    doc = _nlp(texto[:5000])
+    tamanho = len(doc) if len(doc) > 0 else 1
+
+    verbos = sum(1 for token in doc if token.pos_ == "VERB")
+    adjetivos = sum(1 for token in doc if token.pos_ == "ADJ")
+    pronomes = sum(1 for token in doc if token.pos_ == "PRON")
+
+    return {
+        "perc_verbos": (verbos / tamanho) * 100,
+        "perc_adjetivos": (adjetivos / tamanho) * 100,
+        "perc_pronomes": (pronomes / tamanho) * 100
+    }
+
+
+def calcular_score_emocional(texto):
+    """Calcula o grau de sensacionalismo do texto baseado em heurísticas."""
+    texto_lower = texto.lower()
+    n_exclamacao = texto.count("!")
+    n_sensacional = sum(texto_lower.count(p) for p in SENSATIONALIST_WORDS)
+    n_maiusculas = sum(1 for p in texto.split() if p.isupper() and len(p) > 1)
+
+    palavras = max(len(texto.split()), 1)
+    raw = (n_exclamacao * SCORE_EXCLAMACAO_MULT + n_sensacional * SCORE_SENSACIONAL_MULT + n_maiusculas) / palavras * 100
+    return min(round(raw, 2), 10)
+
+
 def get_stylometric_features(text, nlp=None):
     """
     Extracts stylometric features from a given text.
     Returns: [verb_percentage, adj_percentage, pron_percentage, sensationalism_score]
     """
-    _nlp = nlp or _get_default_nlp()
-    doc = _nlp(text[:5000])
-    tamanho = len(doc) if len(doc) > 0 else 1
-    verbos = sum(1 for token in doc if token.pos_ == "VERB") / tamanho * 100
-    adjetivos = sum(1 for token in doc if token.pos_ == "ADJ") / tamanho * 100
-    pronomes = sum(1 for token in doc if token.pos_ == "PRON") / tamanho * 100
-
-    text_lower = text.lower()
-    n_exclamacao = text.count("!")
-    n_sensacional = sum(text_lower.count(p) for p in SENSATIONALIST_WORDS)
-    n_maiusculas = sum(1 for p in text.split() if p.isupper() and len(p) > 1)
-    palavras = max(len(text.split()), 1)
-    score = min(round((n_exclamacao * SCORE_EXCLAMACAO_MULT + n_sensacional * SCORE_SENSACIONAL_MULT + n_maiusculas) / palavras * 100, 2), 10)
-
-    return [verbos, adjetivos, pronomes, score]
+    gram = extrair_features_gramaticais(text, nlp=nlp)
+    score = calcular_score_emocional(text)
+    return [gram["perc_verbos"], gram["perc_adjetivos"], gram["perc_pronomes"], score]
 
 
 def get_bert_embeddings(texts, tokenizer=None, model=None):

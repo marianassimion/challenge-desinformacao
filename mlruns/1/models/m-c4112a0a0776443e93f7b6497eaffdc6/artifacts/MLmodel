@@ -1,0 +1,24 @@
+artifact_path: /Users/aluno2/Documents/challenge-desinformacao/mlruns/1/models/m-c4112a0a0776443e93f7b6497eaffdc6/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.skops
+    predict_fn: predict
+    python_version: 3.14.6
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.9.1
+    skops_trusted_types:
+    - sklearn.tree._tree.Tree
+mlflow_version: 3.16.1
+model_id: m-c4112a0a0776443e93f7b6497eaffdc6
+model_size_bytes: 44289826
+model_uuid: m-c4112a0a0776443e93f7b6497eaffdc6
+prompts: null
+run_id: 1fbd1d3b63b241e5a8131965da6ad06a
+utc_time_created: '2026-09-25 19:38:16.041893'
