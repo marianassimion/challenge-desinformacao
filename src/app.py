@@ -10,11 +10,11 @@ import uvicorn
 from pathlib import Path
 
 # --- CONFIGURATION ---
-BERT_MODEL = "neuralmind/bert-base-portuguese-cased"
+BERT_MODEL = "models/bert"
 MAX_LEN = 128
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODELS_DIR = PROJECT_ROOT / "models"
-MODEL_SAVE_PATH = MODELS_DIR / "rf_model.joblib"
+MODEL_SAVE_PATH = MODELS_DIR / "xgb_model.joblib"
 
 app = FastAPI(title="Fake News Detector API", description="API for detecting fake news using a Hybrid BERT + Stylometric model")
 
