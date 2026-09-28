@@ -8,18 +8,18 @@ import joblib
 from pathlib import Path
 from transformers import AutoTokenizer, AutoModel
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
 from sklearn.metrics import classification_report
 from tqdm import tqdm
 
 # --- CONFIGURATION ---
-BERT_MODEL = "neuralmind/bert-base-portuguese-cased"
-MAX_LEN = 128
+BERT_MODEL = "models/bert"
+MAX_LEN = 512  # Limite expandido para ler a notícia inteira
 BATCH_SIZE = 32
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 MODELS_DIR = PROJECT_ROOT / "models"
-MODEL_SAVE_PATH = MODELS_DIR / "rf_model.joblib"
+MODEL_SAVE_PATH = MODELS_DIR / "xgb_model.joblib" # Salva como XGBoost
 
 # Load Spacy
 try:
@@ -126,20 +126,27 @@ def get_bert_embeddings(texts):
 def main():
     df = load_datasets()
     print(f"Unified Dataset Size: {df.shape}")
+    
     print("Extracting stylometric features...")
     stylometry = np.array([get_stylometric_features(t) for t in tqdm(df["text"])])
     texts = df["text"].tolist()
+    
     bert_features = get_bert_embeddings(texts)
+    
     print("Fusing features...")
     X = np.hstack([bert_features, stylometry])
     y = df["label"].map({"fake": 1, "true": 0}).values
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-    print("Training Hybrid Random Forest Model...")
-    clf = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1)
+    
+    print("Training Hybrid XGBoost Model...")
+    # XGBoost aplicado: Mais resistente a Domain Shift
+    clf = XGBClassifier(n_estimators=200, random_state=42, eval_metric='logloss')
     clf.fit(X_train, y_train)
+    
     y_pred = clf.predict(X_test)
     print("\n--- HYBRID MODEL REPORT ---")
     print(classification_report(y_test, y_pred, target_names=['Verdadeiro (0)', 'Falso (1)']))
+    
     print(f"Saving model to {MODEL_SAVE_PATH}...")
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(clf, MODEL_SAVE_PATH)
