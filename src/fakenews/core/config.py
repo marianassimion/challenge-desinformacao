@@ -8,11 +8,11 @@ DATA_DIR = BASE_DIR / "data"
 MODELS_DIR = BASE_DIR / "models"
 
 # Model Paths
-RF_MODEL_PATH = MODELS_DIR / "rf_model.joblib"
+XGB_MODEL_PATH = MODELS_DIR / "xgb_model.joblib"
 
 # BERT Hyperparameters
-BERT_MODEL_NAME = "neuralmind/bert-base-portuguese-cased"
-MAX_SEQUENCE_LENGTH = 128
+BERT_MODEL_NAME = "models/bert"
+MAX_SEQUENCE_LENGTH = 512
 BATCH_SIZE = 32
 
 # Random Forest Hyperparameters

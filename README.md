@@ -12,17 +12,20 @@ Essas duas dimensões são fundidas e classificadas por uma **Random Forest**, c
 
 ---
 
-## 🛠️ Arquitetura Técnica
+## 🛠️ Arquitetura Técnica (Refatorada)
+
+O projeto segue princípios de **Clean Code** e **Arquitetura em Camadas** para garantir manutenibilidade e escalabilidade.
+
+### 📂 Estrutura de Pastas
+- **`src/fakenews/core/`**: O "coração" do projeto.
+    - `model_manager.py`: Gerencia a carga de modelos via padrão **Singleton** (carrega modelos apenas uma vez na memória).
+    - `features.py`: Classe `FeatureExtractor` responsável por transformar texto bruto em vetores numéricos.
+- **`src/fakenews/api/`**: Camada de interface.
+    - `app.py`: Servidor FastAPI que expõe a predição para o mundo externo.
+- **`src/fakenews/processing/`**: Ferramentas de extração, como o `scraper.py` para leitura de URLs.
 
 ### Pipeline de Dados
 `Datasets (Fake.br, FakeRecogna, FACTCK.BR)` $\rightarrow$ `Limpeza e Unificação` $\rightarrow$ `Extração de Features (BERT + Spacy)` $\rightarrow$ `Random Forest` $\rightarrow$ `Modelo Serializado (.joblib)` $\rightarrow$ `API FastAPI`.
-
-### Componentes do Projeto
-- **`hybrid_model.py`**: Script de treinamento. Responsável por processar os dados, gerar os embeddings e salvar o modelo final.
-- **`app.py`**: API de produção. Carrega o modelo salvo e oferece endpoints para predição em tempo real.
-- **`rf_model.joblib`**: O arquivo binário do modelo treinado.
-- **`STRATEGY_AND_ANALYSIS.md`**: Documento de visão de produto e roadmap.
-- **`PROJECT_REPORT.md`**: Relatório de experimentos e resultados de acurácia.
 
 ---
 
@@ -31,24 +34,36 @@ Essas duas dimensões são fundidas e classificadas por uma **Random Forest**, c
 ### 1. Pré-requisitos
 Você precisará do Python 3.10+ instalado em sua máquina.
 
+Os datasets (`FakeRecogna`, `Fake.br-Corpus`, `FACTCK.BR`) são **git submodules** — um `git clone` normal não traz os arquivos, só as pastas vazias. Depois de clonar, rode:
+```bash
+git submodule update --init --recursive
+```
+
 ### 2. Instalação das Dependências
-Clone o repositório e instale as bibliotecas necessárias:
+Instale as bibliotecas necessárias e o próprio pacote em modo editável (isso já resolve os imports de `fakenews.*` em qualquer passo abaixo, sem precisar mexer em `PYTHONPATH`):
 ```bash
 pip install -r requirements.txt
+pip install -e .
+# Nota: Se houver erro de versão, tente usar: python3 -m pip install -r requirements.txt
+
 python3 -m spacy download pt_core_news_sm
+# Nota: Se der erro, tente usar: python -m spacy download pt_core_news_sm
 ```
 
 ### 3. Treinando o Modelo
 Para treinar o modelo do zero e gerar o arquivo `.joblib`:
 ```bash
-python3 hybrid_model.py
+python3 src/fakenews/training/hybrid_model.py
+# Nota: Se der erro, tente usar: python -m fakenews.training.hybrid_model
 ```
 *Este processo baixará o BERTimbau e processará ~20k notícias. Pode levar alguns minutos.*
 
 ### 4. Executando a API
-Com o modelo treinado (`rf_model.joblib` presente na pasta), inicie o servidor:
+Com o pacote instalado via `pip install -e .` (passo 2), basta rodar da raiz do projeto:
+
 ```bash
-python3 app.py
+python3 -m fakenews.api.app
+# Nota: Se houver erro de comando não encontrado, tente usar: python -m fakenews.api.app
 ```
 O servidor estará disponível em `http://localhost:8000`.
 
@@ -56,11 +71,18 @@ O servidor estará disponível em `http://localhost:8000`.
 Você pode testar a IA através da interface interativa do FastAPI em:
 👉 `http://localhost:8000/docs`
 
-Ou via `curl`:
+Ou via `curl` (Enviando Texto):
 ```bash
 curl -X 'POST' 'http://localhost:8000/predict' \
   -H 'Content-Type: application/json' \
   -d '{"text": "URGENTE! Bomba revelada sobre a economia brasileira, compartilhe antes que apaguem!"}'
+```
+
+Ou via `curl` (Enviando URL):
+```bash
+curl -X 'POST' 'http://localhost:8000/predict' \
+  -H 'Content-Type: application/json' \
+  -d '{"url": "https://g1.globo.com/exemplo-de-noticia"}'
 ```
 
 ---

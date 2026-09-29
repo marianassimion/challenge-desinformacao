@@ -1,2 +1,5 @@
 [core]
-    no_scm = True
+    remote = local-storage
+    autostage = true
+['remote "local-storage"']
+    url = /Users/aluno2/dvc-storage
