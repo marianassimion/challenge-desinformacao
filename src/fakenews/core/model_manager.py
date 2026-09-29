@@ -1,7 +1,7 @@
 import spacy
 import joblib
 from transformers import AutoTokenizer, AutoModel
-from fakenews.core.config import BERT_MODEL_NAME, RF_MODEL_PATH
+from fakenews.core.config import BERT_MODEL_NAME, XGB_MODEL_PATH
 
 class ModelManager:
     """
@@ -51,8 +51,8 @@ class ModelManager:
             )
 
         try:
-            self.rf_classifier = joblib.load(RF_MODEL_PATH)
+            self.xgb_classifier = joblib.load(XGB_MODEL_PATH)
             print("Resources loaded successfully!")
         except Exception as e:
-            print(f"Error: Model file {RF_MODEL_PATH} could not be loaded: {e}")
-            self.rf_classifier = None
+            print(f"Error: Model file {XGB_MODEL_PATH} could not be loaded: {e}")
+            self.xgb_classifier = None
