@@ -23,4 +23,6 @@ Thumbs.db
 .vscode/
 .idea/
 
+.claude/models/bert/
 .claude/.dvc/tmp/
+
