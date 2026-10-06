@@ -1,14 +1,18 @@
+import os
 import spacy
 import numpy as np
 import torch
 import joblib
 import trafilatura
+from dotenv import load_dotenv
 from transformers import AutoTokenizer, AutoModel
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 
-TOKEN = "8800042993:AAFyRcAwbbDj_eqpHTAspDaZ26j_WHGp9wY"
+load_dotenv()  
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+
 BERT_MODEL = "neuralmind/bert-base-portuguese-cased"
 MAX_LEN = 512
 
