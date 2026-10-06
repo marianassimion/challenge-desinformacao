@@ -26,3 +26,4 @@ Thumbs.db
 .claude/models/bert/
 .claude/.dvc/tmp/
 
+.env
