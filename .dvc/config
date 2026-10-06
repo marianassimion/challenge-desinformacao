@@ -1,5 +1,7 @@
 [core]
-    remote = local-storage
+    remote = gcs-storage
     autostage = true
 ['remote "local-storage"']
     url = /Users/aluno2/dvc-storage
+['remote "gcs-storage"']
+    url = gs://challenge-desinformacao
