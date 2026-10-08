@@ -11,7 +11,7 @@ MODELS_DIR = BASE_DIR / "models"
 XGB_MODEL_PATH = MODELS_DIR / "xgb_model.joblib"
 
 # BERT Hyperparameters
-BERT_MODEL_NAME = "models/bert"
+BERT_MODEL_NAME = "neuralmind/bert-base-portuguese-cased"
 MAX_SEQUENCE_LENGTH = 512
 BATCH_SIZE = 32
 

@@ -1,5 +1,9 @@
 import os
 import requests
+import uvicorn
+
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import (
@@ -131,21 +135,68 @@ async def responder_mensagem(
             "❌ Ocorreu um erro interno ao analisar a notícia."
         )
 
+# Configuração do bot
+app = Application.builder().token(TOKEN).build()
+
+app.add_handler(
+    CommandHandler("start", start)
+)
+
+app.add_handler(
+    MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        responder_mensagem
+    )
+)
+
+
+@asynccontextmanager
+async def lifespan(web_app: FastAPI):
+    await app.initialize()
+    await app.start()
+
+    webhook_url = os.getenv("WEBHOOK_URL")
+
+    if webhook_url:
+        await app.bot.set_webhook(url=webhook_url)
+        print(f"🤖 Bot iniciado!")
+        print(f"🌐 Webhook: {webhook_url}")
+    else:
+        print("⚠️ WEBHOOK_URL não configurada.")
+
+    yield
+
+    await app.stop()
+    await app.shutdown()
+
+
+web_app = FastAPI(lifespan=lifespan)
+
+
+@web_app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+
+    update = Update.de_json(
+        data,
+        app.bot
+    )
+
+    await app.process_update(update)
+
+    return {"ok": True}
+
+
+@web_app.get("/health")
+async def health():
+    return {"status": "ok"}
+
 
 if __name__ == "__main__":
-    print("🤖 Bot conectado à API!")
-    
-    app = Application.builder().token(TOKEN).build()
+    PORT = int(os.getenv("PORT", 8080))
 
-    app.add_handler(
-        CommandHandler("start", start)
+    uvicorn.run(
+        web_app,
+        host="0.0.0.0",
+        port=PORT
     )
-
-    app.add_handler(
-        MessageHandler(
-            filters.TEXT & ~filters.COMMAND,
-            responder_mensagem
-        )
-    )
-
-    app.run_polling()

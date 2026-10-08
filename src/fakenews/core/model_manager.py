@@ -1,5 +1,7 @@
 import spacy
 import joblib
+import os
+from google.cloud import storage
 from transformers import AutoTokenizer, AutoModel
 from fakenews.core.config import BERT_MODEL_NAME, XGB_MODEL_PATH
 
@@ -51,8 +53,19 @@ class ModelManager:
             )
 
         try:
-            self.xgb_classifier = joblib.load(XGB_MODEL_PATH)
+            if os.getenv("MODEL_FROM_GCS", "false").lower() == "true":
+                client = storage.Client()
+                bucket = client.bucket("challenge-desinformacao")
+                blob = bucket.blob("models/xgb_model.joblib")
+
+                model_path = "/tmp/xgb_model.joblib"
+                blob.download_to_filename(model_path)
+            else:
+                model_path = XGB_MODEL_PATH
+
+            self.rf_classifier = joblib.load(model_path)
             print("Resources loaded successfully!")
+
         except Exception as e:
             print(f"Error: Model file {XGB_MODEL_PATH} could not be loaded: {e}")
-            self.xgb_classifier = None
+            self.rf_classifier = None

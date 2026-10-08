@@ -5,7 +5,7 @@ import numpy as np
 import uvicorn
 from contextlib import asynccontextmanager
 from typing import Optional
-
+import os
 from fakenews.core.config import MIN_TEXT_LENGTH, MIN_INFO_TOKENS
 from fakenews.core.model_manager import ModelManager
 from fakenews.core.features import FeatureExtractor
@@ -126,5 +126,7 @@ async def health():
     return {"status": "ok", "model_loaded": ModelManager().rf_classifier is not None}
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    
+
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
