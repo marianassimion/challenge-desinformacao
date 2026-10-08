@@ -1,139 +1,171 @@
+
 import os
-import spacy
-import numpy as np
-import torch
-import joblib
-import trafilatura
+import uvicorn
+import httpx
+
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
 from dotenv import load_dotenv
-from transformers import AutoTokenizer, AutoModel
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes
+)
 
+load_dotenv()
 
-load_dotenv()  
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-
-BERT_MODEL = "neuralmind/bert-base-portuguese-cased"
-MAX_LEN = 512
-
-print("Iniciando carregamento do sistema e detectando hardware...")
-
-
-if torch.backends.mps.is_available():
-    device = torch.device("mps")
-    print("Aceleração de Hardware Ativada: Apple M4 (MPS)")
-else:
-    device = torch.device("cpu")
-    print("Rodando na CPU.")
-
-try:
-    nlp = spacy.load("pt_core_news_sm")
-except OSError:
-    import subprocess
-    subprocess.run(["python3", "-m", "spacy", "download", "pt_core_news_sm"])
-    nlp = spacy.load("pt_core_news_sm")
-
-tokenizer = AutoTokenizer.from_pretrained(BERT_MODEL)
-# Envia o modelo BERT para a GPU do Mac
-bert = AutoModel.from_pretrained(BERT_MODEL).to(device)
-bert.eval()
-
-# Carrega o seu XGBoost treinado
-modelo_xgb = joblib.load('models/xgb_model.joblib')
-print("Modelos carregados com sucesso!")
-
-def extrair_texto_de_url(url):
-    """Acessa o site e extrai apenas o corpo da notícia."""
-    downloaded = trafilatura.fetch_url(url)
-    if downloaded:
-        return trafilatura.extract(downloaded)
-    return None
-
-def analisar_noticia(texto):
-    doc = nlp(texto[:5000])
-    tamanho = max(len(doc), 1)
-    verbos = sum(1 for token in doc if token.pos_ == "VERB") / tamanho * 100
-    adjetivos = sum(1 for token in doc if token.pos_ == "ADJ") / tamanho * 100
-    pronomes = sum(1 for token in doc if token.pos_ == "PRON") / tamanho * 100
-
-    palavras_sensacionalistas = [
-        "urgente", "chocante", "bomba", "escândalo", "revelado", "segredo",
-        "atenção", "alerta", "exclusivo", "inacreditável", "compartilhe"
-    ]
-    text_lower = texto.lower()
-    n_exclamacao = texto.count("!")
-    n_sensacional = sum(text_lower.count(p) for p in palavras_sensacionalistas)
-    n_maiusculas = sum(1 for p in texto.split() if p.isupper() and len(p) > 1)
-    palavras = max(len(texto.split()), 1)
-    score_emocional = min(round((n_exclamacao * 1.5 + n_sensacional * 3 + n_maiusculas) / palavras * 100, 2), 10)
-    
-    stylometry = np.array([[verbos, adjetivos, pronomes, score_emocional]])
-
-    # Tokeniza e envia os dados para a GPU do Mac
-    inputs = tokenizer(texto, return_tensors="pt", truncation=True, padding=True, max_length=MAX_LEN)
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-    
-    with torch.no_grad():
-        outputs = bert(**inputs)
-    
-    # Traz o resultado da GPU de volta para a CPU para o XGBoost
-    bert_emb = outputs.last_hidden_state[:, 0, :].cpu().numpy()
-
-    X = np.hstack([bert_emb, stylometry])
-    risco = modelo_xgb.predict_proba(X)[0][1] * 100
-    
-    return risco, score_emocional, adjetivos
-
+API_URL = "https://informio-api-500797299406.southamerica-east1.run.app/predict"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Olá! Eu sou o Detector de Fake News.\n\n"
-        "Me envie o **texto** de uma notícia ou apenas o **link (URL)** e eu analisarei o risco."
+        "Me envie o texto de uma notícia ou apenas o link (URL) "
+        "e eu analisarei o risco."
     )
 
 async def responder_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         texto_usuario = update.message.text
+
         if not texto_usuario:
-            await update.message.reply_text("Por favor, envie texto ou um link válido.")
+            await update.message.reply_text("Por favor, envie um texto ou um link válido.")
             return
 
-        # Detecção de URL
+        # Guarda a mensagem original para editá-la depois, dando sensação de rapidez
+        msg_espera = await update.message.reply_text("🔍 Analisando a notícia... (Isso pode levar alguns segundos)")
+
+        # Se for URL
         if texto_usuario.startswith("http://") or texto_usuario.startswith("https://"):
-            await update.message.reply_text("🔗 Link detectado! Lendo a página...")
-            texto_extraido = extrair_texto_de_url(texto_usuario)
-            
-            if not texto_extraido or len(texto_extraido) < 40:
-                await update.message.reply_text("❌ Bloqueio anti-bot do site ou texto indisponível. Cole o texto manualmente.")
+            payload = {"url": texto_usuario}
+        else:
+            # Se for texto
+            if len(texto_usuario) < 40:
+                await msg_espera.edit_text(
+                    "❌ O texto é muito curto. Envie uma notícia com pelo menos 40 caracteres."
+                )
                 return
-            
-            texto_usuario = texto_extraido
+            payload = {"text": texto_usuario}
 
-        if len(texto_usuario) < 40:
-            await update.message.reply_text("O texto é muito curto. Envie a notícia completa.")
+        # RESOLUÇÃO DO GARGALO: Chamada HTTP Assíncrona não bloqueia o bot
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(API_URL, json=payload)
+
+        # Erro da API
+        if response.status_code != 200:
+            try:
+                erro = response.json()
+            except Exception:
+                erro = response.text
+
+            await msg_espera.edit_text(f"❌ Erro ao analisar a notícia.\n\n{erro}")
             return
 
-        await update.message.reply_text("🔍 Processando na Neural Engine do Mac...")
-        
-        risco, score_emocional_val, perc_adjetivos = analisar_noticia(texto_usuario)
-        
+        resultado = response.json()
+        prediction = resultado["prediction"]
+        confidence = resultado["confidence"]
+        stylometry = resultado["metrics"]["stylometry"]
+        confianca = confidence * 100
+        carga_emocional = stylometry['score_emocional']
+
+        # RESOLUÇÃO DA AMBIGUIDADE: Lógica de Explicação
+        if prediction == "fake":
+            classificacao = "🚨 **POSSÍVEL DESINFORMAÇÃO**"
+            
+            # Se a IA Semântica achou fake, mas o texto é neutro/formal
+            if carga_emocional < 4.0:
+                explicacao = (
+                    "🧠 *Por que é falso se parece formal?*\n"
+                    "Apesar da linguagem neutra e sem exageros, nossa IA Semântica (BERT) "
+                    "identificou fortes padrões de manipulação de contexto e desinformação nesta narrativa."
+                )
+            else:
+                explicacao = (
+                    "🧠 *Por que é falso?*\n"
+                    "Nossa IA Semântica identificou desinformação, e o Raio-X abaixo "
+                    "confirma o uso de gatilhos emocionais e linguagem sensacionalista."
+                )
+        else:
+            classificacao = "✅ **PROVAVELMENTE VERDADEIRA**"
+            explicacao = (
+                "🧠 *Por que é verdadeira?*\n"
+                "O texto possui uma estrutura consistente e nossa IA Semântica "
+                "não detectou padrões associados a narrativas manipuladas."
+            )
+
+        # Formatação limpa e explicativa
         resposta = (
-            f"📊 **Matriz de Confiança**\n"
-            f"Risco de Desinformação: {risco:.1f}%\n\n"
-            f"⚠️ **Sinais Encontrados:**\n"
-            f"- Carga Emocional Semântica: Nível {score_emocional_val}/10\n"
-            f"- Uso de Adjetivos: {perc_adjetivos:.1f}% do texto\n\n"
+            f"📊 **Resultado da Análise**\n\n"
+            f"{classificacao}\n"
+            f"🎯 Confiança da IA: {confianca:.1f}%\n\n"
+            f"{explicacao}\n\n"
+            f"⚠️ **Raio-X Estilométrico:**\n"
+            f"- Carga emocional: {carga_emocional:.1f}/10\n"
+            f"- Verbos: {stylometry['perc_verbos']:.1f}%\n"
+            f"- Adjetivos: {stylometry['perc_adjetivos']:.1f}%\n"
+            f"- Pronomes: {stylometry['perc_pronomes']:.1f}%\n\n"
             f"Reflita antes de compartilhar e busque fontes confiáveis!"
         )
-        await update.message.reply_text(resposta, parse_mode='Markdown')
+
+        await msg_espera.edit_text(resposta, parse_mode="Markdown")
+
+    except httpx.TimeoutException:
+        await msg_espera.edit_text("⏳ A análise demorou demais. O servidor pode estar sobrecarregado.")
+
+    except httpx.RequestError as e:
+        print(f"Erro de conexão com a API: {e}")
+        await msg_espera.edit_text("❌ Não consegui conectar à API de Inteligência Artificial.")
 
     except Exception as e:
-        print(f"Erro interno detectado: {e}")
-        await update.message.reply_text("Desculpe, ocorreu um erro interno. Tente colar o texto em vez do link.")
+        print(f"Erro interno: {e}")
+        # Tratamento seguro caso a mensagem não possa ser editada (ex: foi apagada)
+        try:
+            await msg_espera.edit_text("❌ Ocorreu um erro interno ao analisar a notícia.")
+        except:
+            await update.message.reply_text("❌ Ocorreu um erro interno ao analisar a notícia.")
+
+
+# Configuração do bot
+app = Application.builder().token(TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_mensagem))
+
+@asynccontextmanager
+async def lifespan(web_app: FastAPI):
+    await app.initialize()
+    await app.start()
+
+    webhook_url = os.getenv("WEBHOOK_URL")
+
+    if webhook_url:
+        await app.bot.set_webhook(url=webhook_url)
+        print(f"🤖 Bot iniciado!")
+        print(f"🌐 Webhook: {webhook_url}")
+    else:
+        print("⚠️ WEBHOOK_URL não configurada.")
+
+    yield
+
+    await app.stop()
+    await app.shutdown()
+
+
+web_app = FastAPI(lifespan=lifespan)
+
+@web_app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+    update = Update.de_json(data, app.bot)
+    await app.process_update(update)
+    return {"ok": True}
+
+@web_app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 if __name__ == "__main__":
-    print("O Bot está online! Abra o Telegram e envie /start.")
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_mensagem))
-    app.run_polling()
+    PORT = int(os.getenv("PORT", 8080))
+    uvicorn.run(web_app, host="0.0.0.0", port=PORT)
