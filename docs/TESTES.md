@@ -1,101 +1,73 @@
-# 🧪 Guia de Testes: Detector de Fake News Híbrido
+# Guia de Testes: Detector de Fake News Hibrido
 
-Este guia fornece instruções passo a passo para que qualquer membro da equipe possa configurar o ambiente e testar a eficácia do modelo de detecção de desinformação.
-
-## 📋 Pré-requisitos
-
-Antes de começar, certifique-se de ter instalado:
-- **Python 3.10+**
-- **Git**
+Este guia fornece instrucoes passo a passo para que qualquer membro da equipa possa configurar o ambiente e testar a eficacia do modelo de deteccao de desinformacao, seja em producao ou localmente.
 
 ---
 
-## 🚀 1. Configuração do Ambiente
+## 1. Teste Rapido em Producao (Live - Recomendado)
 
-Siga estes passos para preparar sua máquina:
+O sistema ja esta em producao na nuvem e pode ser testado diretamente pelo utilizador final sem necessidade de configuracoes ou instalacao de dependencias. A nossa interface principal e o Bot do Telegram hospedado no Google Cloud Run.
 
-### Clonagem e Instalação
+1. **Aceda ao Bot:** Abra o Telegram e procure pelo @ do bot oficial do projeto ou clique no link de convite.
+2. **Inicie a interacao:** Envie o comando /start para o bot.
+3. **Como testar:**
+   - **Teste de Web Scraping:** Copie e cole a URL de uma noticia (ex: G1, UOL, CNN). O bot extraira o texto automaticamente.
+   - **Teste de Texto Bruto:** Cole o texto completo de uma mensagem suspeita do WhatsApp.
+4. **Analise a resposta:** O bot processara o texto usando o modelo hibrido de IA (BERT + Estilometria) e retornara se e Fake ou True, o nivel de confianca e o detalhamento das metricas.
+
+---
+
+## 2. Testes para Desenvolvedores (Ambiente Local)
+
+Se precisa de correr o codigo localmente para desenvolvimento ou validar o modelo bruto, siga as instrucoes abaixo.
+
+### Configuracao do Ambiente
+
 ```bash
-# 1. Clone o repositório
+# 1. Clone o repositorio
 git clone <url-do-repositorio>
 cd challenge-desinformacao
 
-# 2. Instale as dependências
+# 2. Instale as dependencias
 pip install -r requirements.txt
-# Nota: Se houver erro de versão, tente usar: python3 -m pip install -r requirements.txt
 
-# 3. Baixe o modelo de linguagem do Spacy para Português
+# 3. Baixe o modelo de linguagem do Spacy para Portugues
 python3 -m spacy download pt_core_news_sm
-# Nota: Se der erro, tente usar: python -m spacy download pt_core_news_sm
 ```
 
-### Recuperação de Dados e Modelos (DVC)
-Como os arquivos pesados não ficam no Git, use o DVC para baixá-los:
+### Configuracao de Credenciais de Seguranca
+Como o token foi retirado do codigo para evitar fugas de dados, precisara de um arquivo de variaveis de ambiente:
+1. Na raiz do projeto, crie um arquivo chamado `.env`.
+2. Adicione o seu token de testes do Telegram (gerado no BotFather):
+
+```env
+TELEGRAM_TOKEN="SEU_TOKEN_DE_TESTE_AQUI"
+```
+*(Nota: O arquivo .env ja esta no .gitignore e nunca deve ser commitado).*
+
+### Metodo A: Teste via Telegram Bot (Local)
+Para testar alteracoes no bot usando a sua maquina (com suporte a aceleracao Apple M4 MPS ou GPU):
+
 ```bash
-# Instale o DVC
-pip install dvc
-
-# Baixe os dados e o modelo do storage remoto
-dvc pull
+python3 src/bot.py
 ```
 
----
+### Metodo B: Teste via API (FastAPI)
+Para testar via requisicoes HTTP (Swagger):
+1. **Inicie o servidor:**
 
-## 🧪 2. Formas de Testar o Modelo
-
-Existem duas maneiras principais de testar a IA: via **API Interativa** (mais fácil) ou via **Script de Treino/Validação**.
-
-### Método A: Teste via API (Recomendado)
-Este método testa o modelo em "tempo real", simulando o uso final do produto.
-
-1. **Inicie o servidor (Caminho Profissional):**
-   ```bash
-   # Define o caminho dos módulos para evitar ModuleNotFoundError
-   export PYTHONPATH=$PYTHONPATH:$(pwd)/src
-   
-   # Inicia a API como módulo do Python
-   python3 -m fakenews.api.app
-   # Nota: Se houver erro de comando não encontrado, tente usar: python -m fakenews.api.app
-   ```
-2. **Acesse a interface visual (Swagger):**
-   Abra o navegador em: 👉 `http://localhost:8000/docs`
-3. **Como testar:**
-   - Clique no botão **POST `/predict`**.
-   - Clique em **"Try it out"**.
-   - Você pode preencher o campo `text` (texto bruto) ou o campo `url` (link da notícia).
-   - Clique em **"Execute"**.
-   - **Analise a resposta:** Verifique a `prediction` (fake/true), a `confidence` e as métricas estilométricas.
-   - **Verifique a Latência:** Olhe para o terminal onde o servidor está rodando; você verá o tempo exato de processamento da requisição (ex: `Request to /predict took 0.45s`).
-
-### Método B: Teste de Validação (Métricas)
-Se você quiser testar a acurácia do modelo em todo o dataset de teste:
-
-1. **Execute o script de treinamento/validação:**
-   ```bash
-   python3 src/fakenews/training/hybrid_model.py
-   # Nota: Se der erro, tente usar: python -m fakenews.training.hybrid_model
-   ```
-2. **O que observar:**
-   Ao final da execução, o script imprimirá o **Classification Report**. Foque nestas métricas:
-   - **Accuracy:** Percentual total de acertos.
-   - **F1-Score:** Equilíbrio entre Precisão e Recall.
+```bash
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+python3 -m fakenews.api.app
+```
+2. **Aceda a interface visual:** Abra o navegador em `http://localhost:8000/docs` e faca um POST na rota `/predict`.
 
 ---
 
-## 📊 3. Como Interpretar os Resultados
+## 3. Como Interpretar os Resultados
 
 | Resultado | Significado | O que observar |
 | :--- | :--- | :--- |
-| **Fake** | A IA detectou padrões de desinformação. | Verifique se o `score_emocional` está alto (muitas exclamações, caps lock). |
-| **True** | A IA considerou a notícia legítima. | Verifique se o texto possui uma estrutura gramatical mais neutra e formal. |
-| **Confidence** | Nível de certeza da IA (0.0 a 1.0). | Valores abaixo de 0.7 indicam que a IA está em dúvida. |
-
----
-
-## 🚩 Reportando Erros
-Se você encontrar um caso onde a IA errou feio, anote:
-1. O texto ou link da notícia.
-2. O resultado esperado vs. o resultado da IA.
-3. O tempo de resposta (latência).
-
-Isso nos ajudará a otimizar o modelo e a performance do sistema!
+| **Fake** | A IA detetou padroes de desinformacao. | Verifique se o score_emocional esta alto (muitas exclamacoes, caps lock). |
+| **True** | A IA considerou a noticia legitima. | Verifique se o texto possui uma estrutura gramatical mais neutra e formal. |
+| **Confidence** | Nivel de certeza da IA (0.0 a 1.0). | Valores abaixo de 0.7 indicam que a IA esta em duvida. |

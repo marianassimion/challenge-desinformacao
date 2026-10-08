@@ -1,107 +1,99 @@
-# 🛡️ Fake News Detector: Sistema Híbrido de Detecção
+# Fake News Detector: Sistema Hibrido de Deteccao
 
-Este projeto implementa um sistema de detecção de notícias falsas (Fake News) utilizando uma abordagem híbrida que combina **Deep Learning Semântico (BERT)** e **Análise Estilométrica (NLP)**. O resultado é um modelo capaz de entender tanto o contexto da notícia quanto a forma como ela foi escrita, atingindo **87% de acurácia**.
+Este projeto implementa um sistema de deteccao de noticias falsas (Fake News) utilizando uma abordagem hibrida que combina Deep Learning Semantico (BERT) e Analise Estilometrica (NLP). O resultado e um modelo capaz de entender tanto o contexto da noticia quanto a forma como ela foi escrita, atingindo **93% de acuracia** e operando em arquitetura Serverless na nuvem.
 
-## 🚀 Visão Geral
+## Visao Geral
 
-O sistema não se baseia apenas em palavras-chave, mas em duas dimensões de análise:
-1.  **Dimensão Semântica:** Utiliza o modelo `BERTimbau` (BERT treinado para português) para extrair vetores de sentido (*embeddings*), identificando a lógica e o contexto da notícia.
-2.  **Dimensão Estilométrica:** Analisa a gramática (proporção de verbos, adjetivos e pronomes) e o "score emocional" (uso de caps lock, exclamações e palavras sensacionalistas).
+O sistema nao se baseia apenas em palavras-chave, mas em duas dimensoes de analise:
+1.  **Dimensao Semantica:** Utiliza o modelo `BERTimbau` (expandido para processar 512 tokens) para extrair vetores de sentido (embeddings), identificando a logica e o contexto da noticia na sua totalidade.
+2.  **Dimensao Estilometrica:** Analisa a gramatica (proporcao de verbos, adjetivos e pronomes) e o "score emocional" (uso de caps lock, exclamacoes e palavras sensacionalistas).
 
-Essas duas dimensões são fundidas e classificadas por uma **Random Forest**, criando um detector robusto e generalista.
-
----
-
-## 🛠️ Arquitetura Técnica (Refatorada)
-
-O projeto segue princípios de **Clean Code** e **Arquitetura em Camadas** para garantir manutenibilidade e escalabilidade.
-
-### 📂 Estrutura de Pastas
-- **`src/fakenews/core/`**: O "coração" do projeto.
-    - `model_manager.py`: Gerencia a carga de modelos via padrão **Singleton** (carrega modelos apenas uma vez na memória).
-    - `features.py`: Classe `FeatureExtractor` responsável por transformar texto bruto em vetores numéricos.
-- **`src/fakenews/api/`**: Camada de interface.
-    - `app.py`: Servidor FastAPI que expõe a predição para o mundo externo.
-- **`src/fakenews/processing/`**: Ferramentas de extração, como o `scraper.py` para leitura de URLs.
-
-### Pipeline de Dados
-`Datasets (Fake.br, FakeRecogna, FACTCK.BR)` $\rightarrow$ `Limpeza e Unificação` $\rightarrow$ `Extração de Features (BERT + Spacy)` $\rightarrow$ `Random Forest` $\rightarrow$ `Modelo Serializado (.joblib)` $\rightarrow$ `API FastAPI`.
+Essas duas dimensoes sao fundidas e classificadas por um algoritmo nativo `HistGradientBoostingClassifier`, criando um detetor robusto, generalista e totalmente compativel com processadores ARM (como o Apple M4) sem necessidade de dependencias C++ externas.
 
 ---
 
-## 📦 Guia de Instalação e Uso
+## Arquitetura Tecnica (Refatorada)
 
-### 1. Pré-requisitos
-Você precisará do Python 3.10+ instalado em sua máquina.
+O projeto segue principios de Clean Code e Arquitetura em Camadas, estando preparado para execucao em Nuvem.
 
-Os datasets (`FakeRecogna`, `Fake.br-Corpus`, `FACTCK.BR`) são **git submodules** — um `git clone` normal não traz os arquivos, só as pastas vazias. Depois de clonar, rode:
+### Estrutura de Pastas e Componentes
+- **`src/fakenews/core/`**: O "coracao" do projeto.
+  - `model_manager.py`: Gere a carga de modelos via padrao Singleton.
+  - `features.py`: Classe `FeatureExtractor` responsavel por transformar texto bruto em vetores numericos.
+- **`src/bot.py`**: Interface principal do utilizador via Telegram (Microsservico de Mensageria).
+- **`src/fakenews/api/app.py`**: Camada de interface alternativa (FastAPI).
+- **`src/fakenews/processing/`**: Ferramentas de extracao, com o web scraper integrado para leitura automatica de URLs.
+
+### Pipeline de Dados e Deploy
+`Datasets Unificados` -> `Extracao de Features (BERT 512 + Spacy)` -> `HistGradientBoosting` -> `xgb_model.joblib` (forçado no Git) -> `Deploy Serverless (Google Cloud Run)` -> `Telegram Bot`.
+
+---
+
+## Guia de Utilizacao (Producao)
+
+O sistema ja esta hospedado no Google Cloud Run e pode ser utilizado imediatamente sem qualquer instalacao:
+
+1. Aceda ao nosso Bot no Telegram.
+2. Envie o comando `/start`.
+3. Cole um texto suspeito ou envie a URL de uma noticia (G1, UOL, etc.) para que a IA raspe o site e analise a veracidade em tempo real.
+
+---
+
+## Guia de Instalacao e Uso (Desenvolvedores)
+
+Se deseja correr a infraestrutura localmente para desenvolvimento:
+
+### 1. Pre-requisitos
+Os datasets (`FakeRecogna`, `Fake.br-Corpus`, `FACTCK.BR`) sao git submodules. Depois de clonar o repositorio, execute:
 ```bash
 git submodule update --init --recursive
 ```
 
-### 2. Instalação das Dependências
-Instale as bibliotecas necessárias e o próprio pacote em modo editável (isso já resolve os imports de `fakenews.*` em qualquer passo abaixo, sem precisar mexer em `PYTHONPATH`):
+### 2. Instalacao das Dependencias
+Instale as bibliotecas e o modelo de linguagem do Spacy:
 ```bash
 pip install -r requirements.txt
 pip install -e .
-# Nota: Se houver erro de versão, tente usar: python3 -m pip install -r requirements.txt
-
 python3 -m spacy download pt_core_news_sm
-# Nota: Se der erro, tente usar: python -m spacy download pt_core_news_sm
 ```
 
-### 3. Treinando o Modelo
-Para treinar o modelo do zero e gerar o arquivo `.joblib`:
-```bash
-python3 src/fakenews/training/hybrid_model.py
-# Nota: Se der erro, tente usar: python -m fakenews.training.hybrid_model
+### 3. Configuracao de Seguranca (.env)
+Para proteger credenciais, crie um ficheiro `.env` na raiz do projeto e adicione o seu Token do Telegram (gerado via BotFather):
+```env
+TELEGRAM_TOKEN="SEU_TOKEN_AQUI"
 ```
-*Este processo baixará o BERTimbau e processará ~20k notícias. Pode levar alguns minutos.*
 
-### 4. Executando a API
-Com o pacote instalado via `pip install -e .` (passo 2), basta rodar da raiz do projeto:
-
+### 4. Executando o Bot (Interface Principal)
+O modelo agora tem suporte nativo a aceleracao de hardware (MPS no Apple Silicon ou CUDA em GPUs). Para iniciar o orquestrador do Telegram:
 ```bash
+python3 src/bot.py
+```
+
+### 5. Executando a API (Interface Secundaria)
+Caso queira testar a aplicacao via HTTP (Swagger):
+```bash
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
 python3 -m fakenews.api.app
-# Nota: Se houver erro de comando não encontrado, tente usar: python -m fakenews.api.app
 ```
-O servidor estará disponível em `http://localhost:8000`.
-
-### 5. Testando a API
-Você pode testar a IA através da interface interativa do FastAPI em:
-👉 `http://localhost:8000/docs`
-
-Ou via `curl` (Enviando Texto):
-```bash
-curl -X 'POST' 'http://localhost:8000/predict' \
-  -H 'Content-Type: application/json' \
-  -d '{"text": "URGENTE! Bomba revelada sobre a economia brasileira, compartilhe antes que apaguem!"}'
-```
-
-Ou via `curl` (Enviando URL):
-```bash
-curl -X 'POST' 'http://localhost:8000/predict' \
-  -H 'Content-Type: application/json' \
-  -d '{"url": "https://g1.globo.com/exemplo-de-noticia"}'
-```
+Aceda a `http://localhost:8000/docs`.
 
 ---
 
-## 📊 Resultados Alcançados
+## Resultados Alcancados
 
-| Versão do Modelo | Acurácia | Base de Dados | Técnica |
+| Versao do Modelo | Acuracia | Base de Dados | Tecnica |
 | :--- | :--- | :--- | :--- |
 | Baseline | 74% | Fake.br | Estilometria Simples |
-| Unificado | 66% | 3 Bases | Estilometria Simples |
-| **Híbrido Final** | **87%** | **3 Bases** | **BERT + Estilometria** |
+| Teste de Estresse | 66% | 3 Bases | Estilometria Simples |
+| **Hibrido Final (Atual)** | **93%** | **3 Bases** | **BERT 512 + HistGradientBoosting** |
 
 ---
 
-## 🗺️ Roadmap de Evolução
-- [ ] **Front-end:** Interface web para usuários finais.
-- [ ] **Banco de Dados:** Armazenamento de predições para criar um ciclo de aprendizado.
-- [ ] **Feedback Loop:** Sistema para que humanos corrijam a IA e melhorem o modelo.
-- [ ] **Cloud Deploy:** Hospedagem da API em AWS/GCP/Azure.
+## Roadmap de Evolucao
+- [x] **Interface Conversacional:** Bot do Telegram para utilizadores finais com leitura de URLs.
+- [x] **Cloud Deploy:** Hospedagem da arquitetura de predicao no Google Cloud Run (Serverless).
+- [ ] **Banco de Dados:** Armazenamento de predicoes para criar um ciclo de aprendizagem (Data Flywheel).
+- [ ] **Feedback Loop:** Sistema para que humanos corrijam a IA e melhorem o modelo em tempo real.
 
 ---
-**Desenvolvido por:** Time 7 / Arquiteto de Software
+**Desenvolvido por:** Time 7 

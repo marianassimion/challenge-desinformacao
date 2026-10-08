@@ -1,65 +1,62 @@
-# Análise Estratégica e Roadmap: Detecção de Fake News
+# Analise Estrategica e Roadmap: Deteccao de Fake News
 
-Este documento detalha a visão de produto, a arquitetura e o plano de implementação para o sistema de detecção de notícias falsas.
+Este documento detalha a visao de produto, a arquitetura e o plano de implementacao para o sistema de deteccao de noticias falsas.
 
-## 🎯 1. Visão de Produto (SaaS de Desinformação)
+## 1. Visao de Produto (SaaS de Desinformacao)
 
-O objetivo é transformar a análise de dados em uma aplicação funcional onde o usuário final possa validar notícias em tempo real.
+O objetivo e transformar a analise de dados numa aplicacao funcional onde o utilizador final possa validar noticias em tempo real.
 
-### 🔄 O Ciclo de Valor (Data Flywheel)
-O produto não será apenas um classificador, mas um sistema que aprende continuamente:
-`Notícia do Usuário` $\rightarrow$ `Modelo Híbrido` $\rightarrow$ `Veredito` $\rightarrow$ `Banco de Dados` $\rightarrow$ `Retreinamento`.
+### O Ciclo de Valor (Data Flywheel)
+O produto nao sera apenas um classificador, mas um sistema que aprende continuamente:
+Noticia do Utilizador -> Modelo Hibrido -> Veredito -> Banco de Dados -> Retreinamento.
 
-Ao salvar cada análise no banco de dados, o sistema cria um ativo de dados proprietário, permitindo que o modelo evolua conforme novas formas de desinformação surgem.
+Ao guardar cada analise no banco de dados, o sistema cria um ativo de dados proprietario, permitindo que o modelo evolua conforme novas formas de desinformacao surgem.
 
 ---
 
-## 📊 2. Análise de Experimentos e Validação
+## 2. Analise de Experimentos e Validacao
 
-### 🧪 Teste de Generalização (Baseline vs. Unificado)
-Realizamos um experimento comparando o uso de um único dataset (`Fake.br-Corpus`) contra a unificação de três bases (`Fake.br`, `FakeRecogna`, `FACTCK.BR`).
+### Teste de Generalizacao (Baseline vs. Unificado)
+Realizamos um experimento comparando o uso de um unico dataset (Fake.br-Corpus) contra a unificacao de tres bases (Fake.br, FakeRecogna, FACTCK.BR).
 
-| Métrica | Apenas `Fake.br-Corpus` | **Dataset Unificado** | Insight |
+| Metrica | Apenas Fake.br-Corpus | Dataset Unificado | Insight |
 | :--- | :--- | :--- | :--- |
-| **Acurácia** | **74%** | **66%** | A queda na acurácia indica que o modelo estava "viciado" no estilo de um único dataset. |
-| **Principal Feature** | `score_emocional` | `perc_verbos` | A diversidade de dados provou que o "sentimentalismo" é fácil de detectar, mas a "estrutura gramatical" é mais consistente. |
+| **Acuracia** | 74% | 66% | A queda na acuracia indica que o modelo estava "viciado" no estilo de um unico dataset. |
+| **Principal Feature** | score_emocional | perc_verbos | A diversidade de dados provou que o "sentimentalismo" e facil de detetar, mas a "estrutura gramatical" e mais consistente. |
 
-**Conclusão:** A queda na precisão validou a necessidade de evoluir da **Estilometria Simples** para a **Análise Semântica (BERT)**.
-
----
-
-## 🛠️ 3. Arquitetura de Modelagem
-
-### ✅ Decisão: Pipeline Híbrido (BERTimbau + Estilometria)
-Para atingir a máxima precisão, utilizaremos a combinação de duas inteligências:
-
-1.  **Inteligência Semântica (BERTimbau):** Extração de *embeddings* (vetores de sentido) para entender o contexto e a lógica do texto.
-2.  **Inteligência Estilométrica (Spacy/Emocional):** Análise de classes gramaticais e gatilhos emocionais (Caps Lock, exclamações, palavras sensacionalistas).
-
-**Estratégia de Treino:**
-*   **Treino Geral:** Utilizar as 3 bases unificadas para aprender a essência da desinformação.
-*   **Especialização:** Realizar ajuste final focando no `Fake.br-Corpus` para maximizar a precisão no dataset principal.
+**Conclusao:** A queda na precisao validou a necessidade de evoluir da Estilometria Simples para a Analise Semantica (BERTimbau), processando 512 tokens para evitar perda de contexto em textos longos. Com a nova arquitetura, a acuracia final saltou para 93%.
 
 ---
 
-## 🚀 4. Roadmap de Implementação
+## 3. Arquitetura de Modelagem
 
-O desenvolvimento está dividido em três fases focadas em transformar o código em produto:
+### Decisao: Pipeline Hibrido Avancado
+Para atingir a maxima precisao, utilizamos a combinacao de duas inteligencias:
 
-### Fase 1: O Coração (Precisão Máxima)
-*   [ ] Implementar a extração de vetores do BERTimbau.
-*   [ ] Fundir vetores BERT + Métricas Gramaticais $\rightarrow$ Modelo Final.
-*   [ ] Validar acurácia final (Meta: $> 85\%$).
+1.  **Inteligencia Semantica (BERTimbau):** Extracao de embeddings (vetores de sentido) para entender o contexto e a logica do texto.
+2.  **Inteligencia Estilometrica (Spacy/Emocional):** Analise de classes gramaticais e gatilhos emocionais (maiusculas, exclamacoes, palavras sensacionalistas).
+3.  **Motor Preditivo:** HistGradientBoostingClassifier, implementado como um Bypass de Arquitetura para garantir suporte nativo sem gargalos de permissao C++ no Apple Silicon.
+
+---
+
+## 4. Roadmap de Implementacao
+
+**Responsavel Tecnico:** Time 7
+**Status Atual:** Em Producao (Live) | API e Bot Operacionais.
+
+O desenvolvimento esta dividido em tres fases focadas em transformar o codigo em produto:
+
+### Fase 1: O Coracao (Precisao Maxima)
+*   [x] Extracao de vetores do BERTimbau com capacidade para 512 tokens.
+*   [x] Fusao de vetores BERT + Metricas Gramaticais -> Modelo Final.
+*   [x] Validacao da acuracia final em 93%.
 
 ### Fase 2: O Corpo (Interface e Entrega)
-*   [ ] Desenvolver API em **FastAPI** com endpoint `/predict`.
-*   [ ] Criar Front-end minimalista para envio de notícias.
-*   [ ] Implementar a lógica de resposta instantânea.
+*   [x] Desenvolver Bot do Telegram com extracao de URLs (Trafilatura).
+*   [x] Protecao de Credenciais usando Variaveis de Ambiente (.env).
+*   [x] Deploy Serverless realizado via Google Cloud Run.
 
-### Fase 3: A Mente (Memória e Aprendizado)
-*   [ ] Configurar banco de dados (**PostgreSQL/MongoDB**) para salvar predições.
-*   [ ] Implementar sistema de feedback (Validação Humana).
-*   [ ] Criar pipeline de retreinamento automático com novos dados coletados.
-
----
-**Status:** Em Desenvolvimento | **Responsável:** Time 7**
+### Fase 3: A Mente (Memoria e Aprendizado)
+*   [ ] Configurar banco de dados (PostgreSQL/MongoDB) para guardar predicoes.
+*   [ ] Implementar sistema de feedback (Validacao Humana).
+*   [ ] Criar pipeline de retreinamento automatico com novos dados recolhidos.

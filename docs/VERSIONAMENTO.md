@@ -1,77 +1,73 @@
-# 📦 Guia de Versionamento: Detector de Fake News Híbrido
+# Guia de Versionamento: Detector de Fake News Hibrido
 
-Este documento explica como funciona o sistema de controle de versão deste projeto. Diferente de projetos de software comuns, projetos de Machine Learning (ML) exigem o versionamento de três pilares: **Código, Dados e Modelos**.
+Este documento explica como funciona o sistema de controlo de versao deste projeto. Diferente de projetos de software comuns, projetos de Machine Learning (ML) exigem o versionamento de tres pilares: Codigo, Dados e Modelos.
 
-## 🏗️ A Arquitetura de Versionamento
+## 1. A Arquitetura de Versionamento
 
-Para evitar que o repositório fique lento e pesado, utilizamos uma abordagem de **Versionamento Tripartite**:
+Utilizamos uma abordagem de Versionamento Tripartite, com uma adaptacao especifica para suportar o nosso deploy na nuvem:
 
-### 1. Código -> Git
-O **Git** é utilizado exclusivamente para versionar a "receita" do projeto.
-- **O que é versionado:** Arquivos `.py`, `.md`, `.json` e `requirements.txt`.
-- **O que é ignorado:** Pastas de dados (`data/`) e arquivos binários de modelos (`models/*.joblib`).
-- **Por que?** Arquivos binários grandes causam "inchaço" no Git, tornando o `clone` e o `pull` extremamente lentos.
+### A. Codigo -> Git
+O Git e utilizado exclusivamente para versionar a "receita" do projeto.
+- **O que e versionado:** Arquivos .py, .md, .json e requirements.txt.
+- **O que e ignorado:** Pastas de dados (data/), e arquivos de variaveis de ambiente (.env) por questoes de seguranca (protecao de Token).
 
-### 2. Dados e Modelos -> DVC (Data Version Control)
-Utilizamos o **DVC**, que funciona como um "Git para dados". O DVC não salva o arquivo pesado no GitHub, mas sim um pequeno arquivo de texto (ex: `rf_model.joblib.dvc`) que serve como um ponteiro.
+### B. Dados e Modelos -> DVC + Excecao Estrategica
+A regra padrao do projeto e utilizar o DVC (Data Version Control) para os dados pesados e cache interno, enviando o arquivo real para um storage remoto (ex: ficheiros .csv de treino).
+- **A Excecao para o Deploy (Google Cloud Run):** Para viabilizar o deploy direto (Serverless), o servidor da nuvem precisa de ter acesso direto ao "cerebro" treinado. Como o nosso novo modelo preditivo (xgb_model.joblib) ficou extremamente leve (aprox. 1MB), aplicamos um bypass intencional ao .gitignore:
 
-- **Como funciona:** 
-    - O arquivo pesado (`.joblib` ou `.csv`) é movido para um cache interno do DVC.
-    - O arquivo `.dvc` (o ponteiro) é commitado no Git.
-    - O arquivo real é enviado para um storage remoto (S3, Google Drive, etc.).
-- **Vantagem:** Você pode trocar de branch no Git e, ao dar um `dvc pull`, o DVC baixa automaticamente a versão exata do modelo que corresponde àquele commit de código.
+```bash
+git add -f models/xgb_model.joblib
+```
 
-### 3. Experimentos -> MLflow
-Enquanto o Git versiona o "como fazer" e o DVC versiona o "resultado", o **MLflow** versiona o **"porquê"**.
+Isso permite que a nuvem puxe a arquitetura 100% pronta sem etapas complexas de DVC no servidor de producao.
 
-- **O que ele rastreia:** 
-    - **Hiperparâmetros:** Versão do BERT utilizada, número de árvores da Random Forest.
-    - **Métricas:** Acurácia, Precisão, Recall e F1-Score de cada treino.
-    - **Artefatos:** O modelo final treinado.
-- **Utilidade:** Se mudarmos a base de dados e a acurácia cair de 87% para 80%, o MLflow nos permite comparar os dois treinos e entender exatamente o que causou a queda.
+### C. Experimentos -> MLflow
+Enquanto o Git versiona o "como fazer" e o DVC versiona o "resultado" dos dados brutos, o MLflow versiona o "porque".
+- **O que ele rastreia:** Hiperparametros (MAX_LEN do BERTimbau), Metricas (Acuracia, Precision, F1-Score) e Artefatos.
+- **Utilidade:** Se mudarmos a base de dados ou o algoritmo e a acuracia oscilar, o MLflow permite-nos comparar os dois treinos e entender exatamente o que causou a alteracao.
 
 ---
 
-## 🛠️ Guia Rápido para Colaboradores
+## 2. Guia Rapido para Colaboradores
 
-Se você acabou de clonar o projeto, siga estes passos para sincronizar tudo:
+Se acabou de clonar o projeto, siga estes passos para sincronizar tudo:
 
-### 1. Sincronizar Código
+### Sincronizar Codigo
 ```bash
 git pull origin main
 ```
 
-### 2. Sincronizar Dados e Modelos
+### Sincronizar Dados Base (DVC)
 ```bash
-# Instale o DVC se não tiver
+# Instale o DVC se nao tiver
 pip install dvc
 
-# Baixe a versão correta do modelo e dos dados
+# Baixe a versao correta dos dados
 dvc pull
 ```
 
-### 3. Visualizar Experimentos
-Para ver a comparação de todos os treinos realizados pela equipe:
+### Visualizar Experimentos
+Para ver a comparacao de todos os treinos realizados pela equipa:
 ```bash
 # Inicie o servidor do MLflow
 python3 -m mlflow ui
 ```
-Acesse `http://localhost:5000` no seu navegador.
+Aceda a `http://localhost:5000` no seu navegador.
 
 ---
 
-## 🔄 Fluxo de Trabalho Recomendado (Clean3 Code Workflow)
+## 3. Fluxo de Trabalho Recomendado (Clean Code Workflow)
 
 Para manter o projeto organizado e evitar conflitos, siga este fluxo:
 
 1. **Sempre trabalhe em branches separadas:** `git checkout -b feat/nova-funcionalidade` ou `git checkout -b fix/correcao-bug`.
-2. **Sincronize a branch de testes:** Antes de finalizar, faça o merge de suas alterações na branch `testes` para validação.
-3. **Execução da API:** Devido à estrutura de pacotes do projeto, utilize sempre o comando de módulo:
+2. **Sincronize a branch de testes:** Antes de finalizar, faca o merge das suas alteracoes na branch `testes` para validacao.
+3. **Execucao da API ou Bot:** Devido a estrutura de pacotes do projeto, utilize sempre os comandos configurando o caminho raiz:
    ```bash
    export PYTHONPATH=$PYTHONPATH:$(pwd)/src
    python3 -m fakenews.api.app
    ```
-4. **Merge Final:** Após a validação na branch `testes`, a alteração deve ser fundida na `main`.
+4. **Merge Final:** Apos a validacao na branch `testes`, a alteracao deve ser fundida na `main`.
 
 ---
 **Desenvolvido por:** Time 7 / Arquiteto de Software
