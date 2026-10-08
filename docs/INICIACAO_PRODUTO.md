@@ -1,28 +1,23 @@
-# Iniciação do Produto: Sistema Anti-Desinformação
+# Iniciacao do Produto: Sistema Anti-Desinformacao
 
-## 1. Definição do Problema de Negócio
-A desinformação digital propaga-se rapidamente através de redes sociais e aplicativos de mensageria (WhatsApp/Telegram), onde a curadoria editorial é baixa. Com base em pesquisa com stakeholders, identificou-se que:
-- **73%** da amostra já compartilhou ou possivelmente compartilhou notícias falsas.
-- Os usuários reconhecem sinais de fake news (como títulos sensacionalistas), mas falham em aplicar a checagem antes do compartilhamento.
-- Existe uma demanda alta (**93% de aceitação**) por alertas automáticos que previnam o compartilhamento impulsivo.
+## 1. Definicao do Problema de Negocio
+A desinformacao digital propaga-se rapidamente atraves de redes sociais e aplicativos de mensageria. Identificou-se que 73% da amostra ja compartilhou fake news.
+**Objetivo:** Criar uma ferramenta de assistencia que identifique sinais de desinformacao em tempo real e forneca a explicacao do motivo da classificacao.
 
-**Objetivo:** Criar uma ferramenta de assistência que identifique sinais de desinformação em tempo real e forneça a explicação do motivo da classificação, promovendo a literacia digital do usuário.
+## 2. Traducao para Problema de Machine Learning
+O problema foi modelado como uma Classificacao Binaria Supervisionada.
+- **Input (X):** Caracteristicas linguisticas, semanticas (BERT) e emocionais do texto.
+- **Output (y):** Classe da noticia $\rightarrow$ 0: Verdadeira ou 1: Falsa.
 
-## 2. Tradução para Problema de Machine Learning
-O problema foi modelado como uma **Classificação Binária Supervisionada**.
-- **Input (X):** Características linguísticas e emocionais do texto (features).
-- **Output (y):** Classe da notícia $\rightarrow$ `0: Verdadeira` ou `1: Falsa`.
+## 3. Justificativa das Escolhas Tecnicas
 
-## 3. Justificativa das Escolhas Técnicas
-Para a implementação do MVP, foram escolhidas as seguintes tecnologias:
-
-| Categoria | Escolha Técnica | Justificativa |
+| Categoria | Escolha Tecnica | Justificativa |
 | :--- | :--- | :--- |
-| **Linguagem** | Python 3 | Ecossistema líder para Data Science e ML. |
-| **NLP/Processamento** | SpaCy | Alta performance para análise de classes gramaticais em Português. |
-| **Algoritmo** | Random Forest | Robusto para datasets tabulares, evita overfitting e fornece a "Importância das Features" (explicabilidade). |
-| **Dataset** | Fake.br-Corpus | Dataset referenciado e robusto para notícias em português. |
-| **Persistência** | Joblib | Permite exportar o modelo treinado para deploy rápido sem re-treinamento. |
+| **Linguagem** | Python 3.14+ | Ecossistema lider para Data Science e ML, rodando nativamente. |
+| **NLP Semantico** | BERTimbau (512 tokens)| Captura o sentido contextual do texto em profundidade. |
+| **Algoritmo** | HistGradientBoosting | Robusto para datasets desbalanceados, nao exige dependencias C++ (libomp), permitindo execucao perfeita no chip M4 e Cloud Run. |
+| **Deploy** | Google Cloud Run | Arquitetura Serverless, escalabilidade instantanea, e suporte a conteineres pesados. |
+| **Persistencia** | xgb_model.joblib | Permite exportar o modelo preditivo para inferencia em milissegundos. |
 
 ## 4. Arquitetura Geral do Fluxo
-`Texto da Notícia` $\rightarrow$ `Pipeline de NLP (SpaCy)` $\rightarrow$ `Cálculo de Score Emocional` $\rightarrow$ `Modelo Random Forest` $\rightarrow$ `Veredito + Explicação`.
+URL ou Texto $\rightarrow$ Scraper (Trafilatura) $\rightarrow$ BERTimbau + SpaCy $\rightarrow$ Modelo Hibrido (HistGradientBoosting) $\rightarrow$ Telegram Bot Veredito.
