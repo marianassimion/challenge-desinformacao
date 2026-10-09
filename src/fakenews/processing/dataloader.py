@@ -3,11 +3,22 @@ import glob
 from pathlib import Path
 from fakenews.core.config import DATA_DIR
 
-def load_datasets():
+def _join_text(*parts):
+    """Junta partes de texto (título, subtítulo, corpo), ignorando vazios/NaN."""
+    partes = [str(p).strip() for p in parts if pd.notna(p) and str(p).strip() != ""]
+    return " ".join(partes)
+
+
+def load_datasets(use_title=True, use_banco=True):
     """
-    Loads and unifies datasets from multiple sources: FakeRecogna, Fake.br-Corpus, and FACTCK.BR.
+    Loads and unifies datasets from multiple sources: FakeRecogna, Fake.br-Corpus,
+    FACTCK.BR and (opcional) o banco próprio em data/extra/banco_treino.csv.
+
+    Args:
+        use_title: se True, o texto do FakeRecogna/banco vira "título subtítulo corpo".
+        use_banco: se True, inclui o banco próprio (todas as linhas são fake).
     Returns:
-        pd.DataFrame: A unified dataframe containing 'text' and 'label' columns.
+        pd.DataFrame: A unified dataframe containing 'text', 'label' and 'source' columns.
     """
     print("Loading and unifying datasets...")
 
@@ -27,6 +38,11 @@ def load_datasets():
             })
             df_recogna["label"] = df_recogna["label"].map({0: "fake", 1: "true"})
             df_recogna["source"] = "FakeRecogna"
+            if use_title:
+                df_recogna["text"] = [
+                    _join_text(t, st, tx)
+                    for t, st, tx in zip(df_recogna["title"], df_recogna["subtitle"], df_recogna["text"])
+                ]
     except Exception as e:
         print(f"Error loading FakeRecogna: {e}")
         df_recogna = pd.DataFrame()
@@ -68,7 +84,23 @@ def load_datasets():
         print(f"Error loading FACTCK.BR: {e}")
         df_factck = pd.DataFrame()
 
-    df_final = pd.concat([df_fakebr, df_recogna, df_factck], ignore_index=True)
+    # 4. Banco próprio (data/extra/banco_treino.csv, gerado por scripts/prepare_banco.py)
+    df_banco = pd.DataFrame()
+    if use_banco:
+        arq_banco = DATA_DIR / "extra" / "banco_treino.csv"
+        if arq_banco.exists():
+            df_banco = pd.read_csv(arq_banco)
+            if use_title:
+                df_banco["text"] = [
+                    _join_text(t, st, tx)
+                    for t, st, tx in zip(df_banco["title"], df_banco["subtitle"], df_banco["text"])
+                ]
+            df_banco = df_banco[["text", "label", "source"]]
+        else:
+            print(f"Warning: {arq_banco} não encontrado — rode scripts/prepare_banco.py.")
+
+    # Banco próprio por último: a ordem das demais fontes não muda (mantém o split reprodutível)
+    df_final = pd.concat([df_fakebr, df_recogna, df_factck, df_banco], ignore_index=True)
 
     if "text" not in df_final.columns or "label" not in df_final.columns or df_final.empty:
         raise RuntimeError(
