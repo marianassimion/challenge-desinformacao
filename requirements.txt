@@ -17,3 +17,7 @@ lxml_html_clean
 playwright
 dvc
 mlflow
+python-telegram-bot==22.5
+spacy==3.7.4
+httpx==0.28.1
+requests==2.32.5
